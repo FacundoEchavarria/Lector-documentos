@@ -18,8 +18,13 @@ def tool(name, *args):
 
 with zipfile.ZipFile(apk) as archive:
     assert archive.testzip() is None
-    for file in ['app.js', 'pdf-reader.js', 'index.html', 'vendor/pdf.mjs', 'vendor/pdf.worker.mjs', 'vendor/mammoth.js', 'vendor/legacy.js']:
+    for file in ['app.js', 'pdf-reader.js', 'vendor/pdf.mjs', 'vendor/pdf.worker.mjs', 'vendor/mammoth.js', 'vendor/legacy.js']:
         assert archive.read('assets/web/' + file) == (root / 'dist' / file).read_bytes(), file
+    html = archive.read('assets/web/index.html')
+    assert b'id="pdfPages"' in html
+    assert b'id="reader-heading"' not in html  # Header is a single class, with no duplicate IDs.
+    assert b'manifest.webmanifest' not in html
+    assert 'Hoja está instalada en tu teléfono y funciona sin conexión'.encode() in html
     css = archive.read('assets/web/style.css')
     assert b'fonts.googleapis.com' not in css
     assert b'--control-text' in css
