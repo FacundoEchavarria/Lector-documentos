@@ -1,0 +1,44 @@
+"""Verify the installable APK and upgrade identity without an Android device."""
+from pathlib import Path
+import hashlib
+import os
+import re
+import subprocess
+import sys
+import xml.etree.ElementTree as ET
+import zipfile
+
+root = Path(__file__).resolve().parent.parent
+apk = Path(sys.argv[1])
+previous = Path(sys.argv[2])
+tools = Path(os.environ['HOJA_ANDROID_BUILD_TOOLS'])
+
+def tool(name, *args):
+    return subprocess.check_output([str(tools / name), *map(str, args)], text=True)
+
+with zipfile.ZipFile(apk) as archive:
+    assert archive.testzip() is None
+    for file in ['app.js', 'pdf-reader.js', 'index.html', 'vendor/pdf.mjs', 'vendor/pdf.worker.mjs', 'vendor/mammoth.js', 'vendor/legacy.js']:
+        assert archive.read('assets/web/' + file) == (root / 'dist' / file).read_bytes(), file
+    css = archive.read('assets/web/style.css')
+    assert b'fonts.googleapis.com' not in css
+    assert b'--control-text' in css
+    assert archive.read('classes.dex').startswith(b'dex\n')
+
+manifest = tool('aapt2', 'dump', 'xmltree', apk, '--file', 'AndroidManifest.xml')
+for value in ['site.hoja.reader', '1.1.0', 'android.intent.action.VIEW', 'android.intent.action.SEND', 'android.intent.action.SEND_MULTIPLE', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']:
+    assert value in manifest, value
+assert 'versionCode(0x0101021b)=2' in manifest
+assert 'uses-permission' not in tool('aapt2', 'dump', 'permissions', apk)
+
+def certificate(path):
+    result = tool('apksigner', 'verify', '--verbose', '--print-certs', path)
+    assert 'Verified using v2 scheme (APK Signature Scheme v2): true' in result
+    assert 'Verified using v3 scheme (APK Signature Scheme v3): true' in result
+    return re.search(r'Signer #1 certificate SHA-256 digest: (\S+)', result).group(1)
+
+assert certificate(apk) == certificate(previous), 'Upgrade must retain the original signing identity'
+checksum = hashlib.sha256(apk.read_bytes()).hexdigest()
+apk.with_suffix('.apk.sha256').write_text(f'{checksum}  {apk.name}\n')
+print('PASS: native APK content, Android document intents, version 2/1.1.0, offline assets, no permissions, v2/v3 signature and same certificate as 1.0.0.')
+print('SHA256:', checksum)

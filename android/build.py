@@ -6,6 +6,7 @@ import re
 import shutil
 import subprocess
 import zipfile
+import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / 'android' / 'build'
@@ -52,7 +53,8 @@ run(TOOLS / 'zipalign', '-f', '-p', '4', OUT / 'base.apk', OUT / 'aligned.apk')
 keypath = os.environ.get('HOJA_KEYSTORE_PATH')
 if not keypath or not os.environ.get('HOJA_KEYSTORE_PASSWORD'):
     raise SystemExit('Set HOJA_KEYSTORE_PATH and HOJA_KEYSTORE_PASSWORD to sign the APK. Keep the keystore out of Git.')
-apk = OUT / 'Hoja-1.0.0.apk'
+version = ET.parse(ROOT / 'android/AndroidManifest.xml').getroot().get('{http://schemas.android.com/apk/res/android}versionName')
+apk = OUT / f'Hoja-{version}.apk'
 run(TOOLS / 'apksigner', 'sign', '--ks', keypath, '--ks-key-alias', os.environ.get('HOJA_SIGNING_ALIAS', 'hoja'),
     '--ks-pass', 'env:HOJA_KEYSTORE_PASSWORD', '--key-pass', 'env:HOJA_KEYSTORE_PASSWORD',
     '--out', apk, OUT / 'aligned.apk')

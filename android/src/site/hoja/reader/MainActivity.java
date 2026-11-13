@@ -5,6 +5,9 @@ import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.res.AssetManager;
 import android.graphics.Color;
+import android.database.Cursor;
+import android.provider.OpenableColumns;
+import android.os.Build;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
@@ -19,7 +22,17 @@ import android.widget.FrameLayout;
 import android.widget.Toast;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.FilterInputStream;
 import java.util.ArrayList;
+import java.util.ArrayDeque;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.json.JSONException;
 import java.util.Collections;
 import java.util.Locale;
 
@@ -27,6 +40,12 @@ import java.util.Locale;
 public final class MainActivity extends Activity {
     private static final String HOST = "appassets.androidplatform.net";
     private static final int PICK_DOCUMENT = 200;
+    private static final long MAX_DOCUMENT_BYTES = 50L * 1024 * 1024;
+    private final ConcurrentHashMap<String, IncomingDocument> incoming = new ConcurrentHashMap<>();
+    private final ArrayDeque<IncomingDocument> pending = new ArrayDeque<>();
+    private final ExecutorService documentExecutor = Executors.newSingleThreadExecutor();
+    private boolean pageLoaded, delivering, destroyed;
+    private int deliveryAttempts;
     private WebView webView;
     private FrameLayout root;
     private ValueCallback<Uri[]> fileCallback;
@@ -43,6 +62,8 @@ public final class MainActivity extends Activity {
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
+        if (Build.VERSION.SDK_INT >= 29 && Build.VERSION.SDK_INT < 33) settings.setForceDark(WebSettings.FORCE_DARK_OFF);
+        if (Build.VERSION.SDK_INT >= 33) settings.setAlgorithmicDarkeningAllowed(false);
         settings.setAllowFileAccess(false);
         settings.setAllowContentAccess(true);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
@@ -56,6 +77,16 @@ public final class MainActivity extends Activity {
                     return response(403, "Blocked");
                 }
                 String path = uri.getPath();
+                if (path != null && path.startsWith("/incoming/")) {
+                    IncomingDocument document = incoming.remove(path.substring("/incoming/".length()));
+                    if (document == null) return response(404, "Not found");
+                    try {
+                        InputStream stream = getContentResolver().openInputStream(document.uri);
+                        if (stream == null) return response(404, "Not found");
+                        return new WebResourceResponse(document.type, null, 200, "OK",
+                            Collections.singletonMap("Cache-Control", "no-store"), new LimitedInputStream(stream));
+                    } catch (IOException | SecurityException error) { return response(403, "Unavailable"); }
+                }
                 if (path == null || path.equals("/")) path = "/index.html";
                 if (path.contains("..") || path.contains("\\")) return response(403, "Blocked");
                 try {
@@ -65,6 +96,9 @@ public final class MainActivity extends Activity {
                 } catch (IOException error) {
                     return response(404, "Not found");
                 }
+            }
+            @Override public void onPageFinished(WebView view, String url) {
+                if (url.equals("https://" + HOST + "/index.html")) { pageLoaded = true; deliverPending(); }
             }
             @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
@@ -102,6 +136,137 @@ public final class MainActivity extends Activity {
             @Override public void onHideCustomView() { leaveFullscreen(); }
         });
         webView.loadUrl("https://" + HOST + "/index.html");
+        receiveIntent(getIntent());
+    }
+
+    @Override protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        if (fullscreenView != null) leaveFullscreen();
+        receiveIntent(intent);
+    }
+
+    private void receiveIntent(final Intent intent) {
+        if (intent == null) return;
+        String action = intent.getAction();
+        ArrayList<Uri> uris = new ArrayList<>();
+        if (Intent.ACTION_VIEW.equals(action) && intent.getData() != null) uris.add(intent.getData());
+        if (Intent.ACTION_SEND.equals(action)) {
+            Uri uri = intent.getParcelableExtra(Intent.EXTRA_STREAM);
+            if (uri != null) uris.add(uri);
+        }
+        if (Intent.ACTION_SEND_MULTIPLE.equals(action)) {
+            ArrayList<Uri> shared = intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
+            if (shared != null) uris.addAll(shared);
+        }
+        if (uris.isEmpty() && (Intent.ACTION_SEND.equals(action) || Intent.ACTION_SEND_MULTIPLE.equals(action)) && intent.getClipData() != null) {
+            for (int i = 0; i < intent.getClipData().getItemCount(); i++) {
+                Uri uri = intent.getClipData().getItemAt(i).getUri();
+                if (uri != null) uris.add(uri);
+            }
+        }
+        for (int n = 0; n < Math.min(uris.size(), 20); n++) {
+            final Uri uri = uris.get(n);
+            if (!"content".equals(uri.getScheme()) && !"file".equals(uri.getScheme())) continue;
+            documentExecutor.execute(new Runnable() {
+                @Override public void run() {
+                    try {
+                        final IncomingDocument document = describeDocument(uri, intent.getType());
+                        runOnUiThread(new Runnable() {
+                            @Override public void run() {
+                                if (destroyed) return;
+                                incoming.put(document.token, document);
+                                pending.add(document);
+                                deliverPending();
+                            }
+                        });
+                    } catch (Exception error) {
+                        runOnUiThread(new Runnable() {
+                            @Override public void run() { if (!destroyed) message("No se pudo abrir el archivo. Elige un PDF o Word de hasta 50 MB."); }
+                        });
+                    }
+                }
+            });
+        }
+    }
+
+    private IncomingDocument describeDocument(Uri uri, String intentType) throws IOException {
+        String name = uri.getLastPathSegment();
+        long size = -1;
+        try (Cursor cursor = getContentResolver().query(uri, new String[]{OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE}, null, null, null)) {
+            if (cursor != null && cursor.moveToFirst()) {
+                int column = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                if (column >= 0 && !cursor.isNull(column)) name = cursor.getString(column);
+                column = cursor.getColumnIndex(OpenableColumns.SIZE);
+                if (column >= 0 && !cursor.isNull(column)) size = cursor.getLong(column);
+            }
+        } catch (IllegalArgumentException ignored) { /* Some file providers have no metadata query. */ }
+        if (size > MAX_DOCUMENT_BYTES || size == 0) throw new IOException("File size");
+        String type = getContentResolver().getType(uri);
+        if (type == null) type = intentType;
+        if (name == null || name.trim().isEmpty()) name = "Documento";
+        name = name.replace('/', '_').replace('\\', '_').trim();
+        String lower = name.toLowerCase(Locale.ROOT);
+        if (!lower.endsWith(".pdf") && !lower.endsWith(".doc") && !lower.endsWith(".docx")) {
+            if ("application/pdf".equals(type) || "application/x-pdf".equals(type)) name += ".pdf";
+            else if ("application/msword".equals(type) || "application/vnd.ms-word".equals(type)) name += ".doc";
+            else if ("application/vnd.openxmlformats-officedocument.wordprocessingml.document".equals(type)) name += ".docx";
+            else throw new IOException("Unsupported document");
+        }
+        lower = name.toLowerCase(Locale.ROOT);
+        type = lower.endsWith(".pdf") ? "application/pdf" : lower.endsWith(".docx") ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document" : "application/msword";
+        return new IncomingDocument(uri, name, type);
+    }
+
+    private void deliverPending() {
+        if (destroyed || !pageLoaded || pending.isEmpty() || delivering) return;
+        final ArrayList<IncomingDocument> batch = new ArrayList<>(pending);
+        JSONArray data = new JSONArray();
+        try {
+            for (IncomingDocument document : batch) {
+                JSONObject item = new JSONObject();
+                item.put("name", document.name);
+                item.put("type", document.type);
+                item.put("modified", System.currentTimeMillis());
+                item.put("url", "https://" + HOST + "/incoming/" + document.token);
+                data.put(item);
+            }
+        } catch (JSONException error) { return; }
+        delivering = true;
+        String script = "(function(){if(!window.hojaReady||typeof window.hojaOpenAndroidDocuments!=='function')return false;window.hojaOpenAndroidDocuments(" + data.toString() + ");return true;})()";
+        webView.evaluateJavascript(script, new ValueCallback<String>() {
+            @Override public void onReceiveValue(String handled) {
+                delivering = false;
+                if (destroyed) return;
+                if ("true".equals(handled)) {
+                    pending.removeAll(batch); deliveryAttempts = 0; deliverPending();
+                } else if (++deliveryAttempts < 150) {
+                    webView.postDelayed(new Runnable() { @Override public void run() { deliverPending(); } }, 100);
+                } else {
+                    for (IncomingDocument document : pending) incoming.remove(document.token);
+                    pending.clear(); deliveryAttempts = 0;
+                    message("No se terminó de cargar Hoja. Abre el documento de nuevo.");
+                }
+            }
+        });
+    }
+
+    private static final class IncomingDocument {
+        final Uri uri;
+        final String name, type, token = UUID.randomUUID().toString();
+        IncomingDocument(Uri uri, String name, String type) { this.uri = uri; this.name = name; this.type = type; }
+    }
+
+    private static final class LimitedInputStream extends FilterInputStream {
+        private long total;
+        LimitedInputStream(InputStream stream) { super(stream); }
+        private void count(int bytes) throws IOException {
+            if (bytes > 0 && (total += bytes) > MAX_DOCUMENT_BYTES) throw new IOException("Document exceeds 50 MB");
+        }
+        @Override public int read() throws IOException { int value = in.read(); count(value < 0 ? 0 : 1); return value; }
+        @Override public int read(byte[] bytes, int offset, int length) throws IOException {
+            int count = in.read(bytes, offset, length); count(count); return count;
+        }
     }
 
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -151,6 +316,7 @@ public final class MainActivity extends Activity {
         return "application/octet-stream";
     }
     @Override protected void onDestroy() {
+        destroyed = true; documentExecutor.shutdownNow(); incoming.clear(); pending.clear();
         if (fileCallback != null) { fileCallback.onReceiveValue(null); fileCallback = null; }
         webView.stopLoading(); root.removeAllViews(); webView.destroy();
         super.onDestroy();

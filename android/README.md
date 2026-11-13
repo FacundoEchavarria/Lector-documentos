@@ -4,6 +4,8 @@ Aplicación Android de solo lectura que incluye el visor completo en el APK. Fun
 
 - Android 8.0 o posterior y Android System WebView actualizado.
 - Selección de documentos mediante el selector de Android, sin permisos generales de almacenamiento.
+- Aparece en «Abrir con» para PDF y Word y recibe documentos compartidos desde otras aplicaciones, incluso si ya está abierta.
+- PDF continuo: páginas separadas una debajo de otra, con carga progresiva y memoria limitada.
 - Biblioteca local en IndexedDB dentro de la aplicación. Desinstalar o borrar sus datos elimina esta biblioteca; los documentos originales permanecen intactos.
 - No solicita acceso a Internet, cámara, contactos ni micrófono.
 
@@ -19,8 +21,12 @@ Ejecuta desde la raíz:
 python3 android/build.py
 ```
 
-El archivo firmado queda en `android/build/Hoja-1.0.0.apk`. El script permite `HOJA_ANDROID_BUILD_TOOLS` y `HOJA_ANDROID_JAR` para SDK con otra distribución de carpetas. `HOJA_ECJ_JAR` permite usar el compilador Eclipse si solo está instalado Java Runtime.
+El archivo firmado queda en `android/build/Hoja-1.1.0.apk`. El script permite `HOJA_ANDROID_BUILD_TOOLS` y `HOJA_ANDROID_JAR` para SDK con otra distribución de carpetas. `HOJA_ECJ_JAR` permite usar el compilador Eclipse si solo está instalado Java Runtime.
 
 La app usa el código de `dist/`, empaquetado bajo un origen HTTPS local interceptado por WebView. No depende del sitio publicado ni de una conexión a ChatGPT.
 
 Validación de esta compilación: compilación Java, empaquetado Android, firma criptográfica y metadatos del APK. No se ha probado en un dispositivo o emulador Android en este entorno.
+
+## Actualización 1.1.0
+
+Se firma con la misma clave que 1.0.0 y mantiene el paquete `site.hoja.reader`; se instala encima para conservar la biblioteca. Incluye controles con contraste en ambos temas, cabecera sin superposición, iconos SVG directos y bloqueo de la recoloración automática de Android.
