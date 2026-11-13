@@ -11,6 +11,9 @@ import android.os.Build;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
+import android.view.WindowInsets;
+import android.view.WindowInsetsController;
+import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
@@ -49,8 +52,7 @@ public final class MainActivity extends Activity {
     private WebView webView;
     private FrameLayout root;
     private ValueCallback<Uri[]> fileCallback;
-    private View fullscreenView;
-    private WebChromeClient.CustomViewCallback fullscreenCallback;
+    private boolean readingFullscreen;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -70,6 +72,7 @@ public final class MainActivity extends Activity {
         settings.setMediaPlaybackRequiresUserGesture(true);
         settings.setSupportMultipleWindows(false);
         webView.setBackgroundColor(Color.rgb(248, 249, 245));
+        webView.addJavascriptInterface(new ReaderBridge(), "HojaAndroid");
         webView.setWebViewClient(new WebViewClient() {
             @Override public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
@@ -127,13 +130,6 @@ public final class MainActivity extends Activity {
                 }
                 return true;
             }
-            @Override public void onShowCustomView(View view, CustomViewCallback callback) {
-                if (fullscreenView != null) { callback.onCustomViewHidden(); return; }
-                fullscreenView = view; fullscreenCallback = callback;
-                webView.setVisibility(View.GONE);
-                root.addView(view, new FrameLayout.LayoutParams(-1, -1));
-            }
-            @Override public void onHideCustomView() { leaveFullscreen(); }
         });
         webView.loadUrl("https://" + HOST + "/index.html");
         receiveIntent(getIntent());
@@ -142,7 +138,7 @@ public final class MainActivity extends Activity {
     @Override protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
-        if (fullscreenView != null) leaveFullscreen();
+        if (readingFullscreen) setReadingFullscreen(false);
         receiveIntent(intent);
     }
 
@@ -283,19 +279,50 @@ public final class MainActivity extends Activity {
     }
 
     @Override public void onBackPressed() {
-        if (fullscreenView != null) { leaveFullscreen(); return; }
+        if (readingFullscreen) { setReadingFullscreen(false); return; }
         webView.evaluateJavascript("(function(){var dialogs=document.querySelectorAll('dialog[open]');if(dialogs.length){dialogs[dialogs.length-1].close();return true;}var r=document.getElementById('reader');if(r&&!r.hidden){document.getElementById('closeReader').click();return true;}return false;})()", new ValueCallback<String>() {
             @Override public void onReceiveValue(String handled) {
                 if (!"true".equals(handled)) finish();
             }
         });
     }
-    private void leaveFullscreen() {
-        if (fullscreenView == null) return;
-        root.removeView(fullscreenView); fullscreenView = null;
-        webView.setVisibility(View.VISIBLE);
-        if (fullscreenCallback != null) fullscreenCallback.onCustomViewHidden();
-        fullscreenCallback = null;
+    /** Only UI state is exposed; documents stay behind the local asset origin. */
+    public final class ReaderBridge {
+        @JavascriptInterface public void setReadingFullscreen(final boolean enabled) {
+            runOnUiThread(new Runnable() {
+                @Override public void run() {
+                    if (destroyed || webView.getUrl() == null) return;
+                    Uri origin = Uri.parse(webView.getUrl());
+                    if ("https".equals(origin.getScheme()) && HOST.equals(origin.getHost())) MainActivity.this.setReadingFullscreen(enabled);
+                }
+            });
+        }
+    }
+
+    private void setReadingFullscreen(boolean enabled) {
+        readingFullscreen = enabled;
+        applySystemBars();
+        if (!destroyed) webView.evaluateJavascript("window.hojaNativeFullscreenChanged&&window.hojaNativeFullscreenChanged(" + enabled + ")", null);
+    }
+
+    private void applySystemBars() {
+        if (Build.VERSION.SDK_INT >= 30) {
+            WindowInsetsController controller = getWindow().getInsetsController();
+            if (controller == null) return;
+            if (readingFullscreen) {
+                controller.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+                controller.hide(WindowInsets.Type.systemBars());
+            } else controller.show(WindowInsets.Type.systemBars());
+        } else {
+            int flags = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+            if (readingFullscreen) flags |= View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
+            getWindow().getDecorView().setSystemUiVisibility(flags);
+        }
+    }
+
+    @Override public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus && readingFullscreen) applySystemBars();
     }
     private void message(String text) { Toast.makeText(this, text, Toast.LENGTH_LONG).show(); }
     private static WebResourceResponse response(int status, String reason) {
@@ -318,6 +345,7 @@ public final class MainActivity extends Activity {
     @Override protected void onDestroy() {
         destroyed = true; documentExecutor.shutdownNow(); incoming.clear(); pending.clear();
         if (fileCallback != null) { fileCallback.onReceiveValue(null); fileCallback = null; }
+        webView.removeJavascriptInterface("HojaAndroid");
         webView.stopLoading(); root.removeAllViews(); webView.destroy();
         super.onDestroy();
     }

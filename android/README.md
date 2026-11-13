@@ -21,7 +21,7 @@ Ejecuta desde la raíz:
 python3 android/build.py
 ```
 
-El archivo firmado queda en `android/build/Hoja-1.1.0.apk`. El script permite `HOJA_ANDROID_BUILD_TOOLS` y `HOJA_ANDROID_JAR` para SDK con otra distribución de carpetas. `HOJA_ECJ_JAR` permite usar el compilador Eclipse si solo está instalado Java Runtime.
+El archivo firmado queda en `android/build/Hoja-1.1.1.apk`. El script permite `HOJA_ANDROID_BUILD_TOOLS` y `HOJA_ANDROID_JAR` para SDK con otra distribución de carpetas. `HOJA_ECJ_JAR` permite usar el compilador Eclipse si solo está instalado Java Runtime.
 
 La app usa el código de `dist/`, empaquetado bajo un origen HTTPS local interceptado por WebView. No depende del sitio publicado ni de una conexión a ChatGPT.
 
@@ -30,3 +30,11 @@ Validación de esta compilación: compilación Java, empaquetado Android, firma 
 ## Actualización 1.1.0
 
 Se firma con la misma clave que 1.0.0 y mantiene el paquete `site.hoja.reader`; se instala encima para conservar la biblioteca. Incluye controles con contraste en ambos temas, cabecera sin superposición, iconos SVG directos y bloqueo de la recoloración automática de Android.
+
+## Corrección 1.1.1
+
+- Corrige la eliminación de la importación externa de fuentes: los puntos y coma dentro de la URL ya no dejan CSS inválido en el APK. Se verifican los colores base y el fondo real de la cabecera a partir del APK firmado.
+- Pantalla completa de lectura con control nativo de las barras de Android, sin cambiar el WebView por una superficie de vídeo. Oculta cabecera y pie; «Salir» o Atrás recuperan los controles sin cerrar el documento.
+- Iconos SVG locales sin sprite oculto ni modificación de referencias durante la carga.
+
+Después de compilar, ejecuta `node test/apk-style.mjs android/build/Hoja-1.1.1.apk` y `HOJA_ANDROID_BUILD_TOOLS=/ruta/build-tools/35.0.0 python test/android-package.py android/build/Hoja-1.1.1.apk releases/Hoja-1.1.0.apk`.

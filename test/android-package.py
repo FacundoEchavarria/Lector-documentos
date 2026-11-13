@@ -18,7 +18,7 @@ def tool(name, *args):
 
 with zipfile.ZipFile(apk) as archive:
     assert archive.testzip() is None
-    for file in ['app.js', 'pdf-reader.js', 'vendor/pdf.mjs', 'vendor/pdf.worker.mjs', 'vendor/mammoth.js', 'vendor/legacy.js']:
+    for file in ['app.js', 'pdf-reader.js', 'reading-mode.js', 'icons.js', 'vendor/pdf.mjs', 'vendor/pdf.worker.mjs', 'vendor/mammoth.js', 'vendor/legacy.js']:
         assert archive.read('assets/web/' + file) == (root / 'dist' / file).read_bytes(), file
     html = archive.read('assets/web/index.html')
     assert b'id="pdfPages"' in html
@@ -27,12 +27,18 @@ with zipfile.ZipFile(apk) as archive:
     css = archive.read('assets/web/style.css')
     assert b'fonts.googleapis.com' not in css
     assert b'--control-text' in css
-    assert archive.read('classes.dex').startswith(b'dex\n')
+    dex = archive.read('classes.dex')
+    assert dex.startswith(b'dex\n')
+    assert b'HojaAndroid' in dex and b'setReadingFullscreen' in dex and b'WindowInsetsController' in dex
+    assert b'<symbol' not in html and b'<use ' not in html
 
+version = ET.parse(root / 'android/AndroidManifest.xml').getroot().attrib
+name = version['{http://schemas.android.com/apk/res/android}versionName']
+code = version['{http://schemas.android.com/apk/res/android}versionCode']
 manifest = tool('aapt2', 'dump', 'xmltree', apk, '--file', 'AndroidManifest.xml')
-for value in ['site.hoja.reader', '1.1.0', 'android.intent.action.VIEW', 'android.intent.action.SEND', 'android.intent.action.SEND_MULTIPLE', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']:
+for value in ['site.hoja.reader', name, 'android.intent.action.VIEW', 'android.intent.action.SEND', 'android.intent.action.SEND_MULTIPLE', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']:
     assert value in manifest, value
-assert 'versionCode(0x0101021b)=2' in manifest
+assert f'versionCode(0x0101021b)={code}' in manifest
 assert 'uses-permission' not in tool('aapt2', 'dump', 'permissions', apk)
 
 def certificate(path):
@@ -44,5 +50,5 @@ def certificate(path):
 assert certificate(apk) == certificate(previous), 'Upgrade must retain the original signing identity'
 checksum = hashlib.sha256(apk.read_bytes()).hexdigest()
 apk.with_suffix('.apk.sha256').write_text(f'{checksum}  {apk.name}\n')
-print('PASS: native APK content, Android document intents, version 2/1.1.0, offline assets, no permissions, v2/v3 signature and same certificate as 1.0.0.')
+print('PASS: native APK content, Android document intents, current version and native fullscreen bridge, offline assets, no permissions, v2/v3 signature and same certificate as 1.0.0.')
 print('SHA256:', checksum)

@@ -69,7 +69,6 @@ button:disabled { opacity: 1; color: var(--muted); background: var(--soft); curs
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  isolation: isolate;
 }
 .reader-header {
   display: block;
@@ -139,3 +138,20 @@ button:disabled { opacity: 1; color: var(--muted); background: var(--soft); curs
   .topbar .readonly { display: none; }
 }
 .dark .filters button.selected, .dark .nav-item.active { color: var(--button-text); background: var(--button-bg); }
+
+/* The Android toolbar stays on a plain opaque surface, with system UI fonts. */
+.reader-header { background: #ffffff; color: #263c33; font-family: system-ui, -apple-system, Roboto, sans-serif; }
+.dark .reader-header { background: #26332b; color: #e0e8da; }
+.reader-heading, .reader-controls { position: relative; background: transparent; }
+.reader-header svg { overflow: visible; background: transparent; }
+.reader.reading-fullscreen > .reader-header,
+.reader.reading-fullscreen > .reader-footer { display: none; }
+.reader.reading-fullscreen > .reader-viewport { padding: 8px; }
+.exit-reading-fullscreen {
+  position: absolute; right: 14px; bottom: max(14px, env(safe-area-inset-bottom));
+  z-index: 5; display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  min-width: 80px; min-height: 44px; padding: 10px 13px; border-radius: 24px;
+  background: #294e40; color: #ffffff; border: 1px solid #e5f1dc;
+  font: 600 12px system-ui, sans-serif; box-shadow: 0 2px 8px #0003;
+}
+.exit-reading-fullscreen svg { color: #ffffff; stroke: currentColor; width: 20px; height: 20px; }

@@ -25,7 +25,7 @@ shutil.copytree(ROOT / 'dist', OUT / 'assets/web', dirs_exist_ok=True)
 # The Android package is entirely local, including fonts and sample documents.
 style = OUT / 'assets/web/style.css'
 shutil.copytree(ROOT / 'android/fonts', OUT / 'assets/web/fonts')
-style.write_text((ROOT / 'android/fonts/fonts.css').read_text() + re.sub(r"@import url\([^;]+;\s*", '', style.read_text(), count=1))
+style.write_text((ROOT / 'android/fonts/fonts.css').read_text() + re.sub(r"@import\s+url\([^)]*\)\s*;\s*", '', style.read_text(), count=1))
 index = OUT / 'assets/web/index.html'
 html = index.read_text()
 html = html.replace('Para tener Hoja a mano, usa «Añadir a pantalla de inicio» desde el menú de tu navegador. El acceso requiere conexión.',

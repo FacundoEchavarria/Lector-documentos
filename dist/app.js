@@ -1,17 +1,16 @@
 import * as pdfjs from './vendor/pdf.mjs';
 import { ContinuousPdfReader } from './pdf-reader.js';
+import { createReadingMode } from './reading-mode.js';
+import { icon } from './icons.js';
 pdfjs.GlobalWorkerOptions.workerSrc = new URL('./vendor/pdf.worker.mjs', import.meta.url).href;
 const $ = s => document.querySelector(s);
-// Inline each icon so Android WebView does not depend on SVG symbol references.
-const glyphs = new Map([...document.querySelectorAll('symbol')].map(s => [s.id.slice(2), s.innerHTML]));
-for (const use of document.querySelectorAll('svg > use')) {
- const symbol = document.querySelector(use.getAttribute('href'));
- if (symbol) { const svg = use.parentElement; svg.setAttribute('viewBox', symbol.getAttribute('viewBox')); svg.innerHTML = symbol.innerHTML; }
-}
-const icon = id => `<svg aria-hidden="true" viewBox="0 0 24 24">${glyphs.get(id) || ''}</svg>`;
 const escape = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let records=[], mode='all', filter='all', db, current, pdf, pdfReader, zoom=1, openToken=0, pendingDelete, positionTimer, documentLoading=false;
 let toastTimer;
+const readingMode=createReadingMode({reader:$('#reader'),button:$('#readerFullscreen'),exitButton:$('#exitReadingFullscreen'),onError:message=>toast(message),onLayoutChange(){
+ const viewer=pdfReader;const position=viewer?.getPosition();
+ requestAnimationFrame(()=>{if(viewer&&viewer===pdfReader){viewer.resize();viewer.restorePosition(position);viewer.updateVisible();}});
+}});
 function toast(msg){$('#toast').textContent=msg;$('#toast').classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('visible'),4500)}
 async function initDB(){return new Promise((resolve,reject)=>{let req=indexedDB.open('hoja-library',1);req.onupgradeneeded=()=>req.result.createObjectStore('documents',{keyPath:'id'});req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
 async function dbOp(action,value){if(!db)throw new Error('storage');return new Promise((resolve,reject)=>{const tx=db.transaction('documents',action==='getAll'?'readonly':'readwrite');const store=tx.objectStore('documents');const req=store[action](...(value===undefined?[]:[value]));tx.oncomplete=()=>resolve(req.result);tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error)})}
@@ -88,8 +87,9 @@ function savePosition(){
  if(pdfReader&&current&&!current.sample){Object.assign(current,{page:pdfReader.getPosition().page,pageOffset:pdfReader.getPosition().offset});dbOp('put',current).catch(()=>{});}
 }
 function closeReader(){
+ readingMode.exit();
  savePosition();openToken++;pdfReader?.destroy();pdfReader=null;if(pdf){pdf.destroy();pdf=null}
- $('#reader').hidden=true;$('#app').inert=false;$('#app').hidden=false;document.body.style.overflow='';$('#wordContent').replaceChildren();$('#openFile').focus();if(document.fullscreenElement)document.exitFullscreen?.().catch(()=>{});draw();
+ $('#reader').hidden=true;$('#app').inert=false;$('#app').hidden=false;document.body.style.overflow='';$('#wordContent').replaceChildren();$('#openFile').focus();draw();
 }
 function updateZoomControls(){
  $('#zoomLabel').textContent=Math.round(zoom*100)+'%';$('#zoomOut').disabled=documentLoading||zoom<=.6;$('#zoomIn').disabled=documentLoading||zoom>=2.5;$('#fitWidth').disabled=documentLoading;
@@ -109,7 +109,6 @@ $('#documentList').onclick=async e=>{const open=e.target.closest('[data-open]');
 $('#cancelDelete').onclick=()=>$('#deleteDialog').close();$('#confirmDelete').onclick=async()=>{try{if(db)await dbOp('delete',pendingDelete);records=records.filter(r=>r.id!==pendingDelete);$('#deleteDialog').close();draw();toast('Documento quitado de la biblioteca.')}catch{toast('No se pudo quitar el documento. Inténtalo de nuevo.')}};
 for(const b of document.querySelectorAll('[data-example]'))b.onclick=async()=>{const ext=b.dataset.example;try{const response=await fetch(`samples/ejemplo.${ext}`);if(!response.ok)throw new Error();openDocument({id:'sample-'+ext,ext,name:ext==='pdf'?'El placer de leer sin prisa.pdf':'Bienvenido a tu nuevo espacio.docx',blob:await response.blob(),sample:true})}catch{toast('No se pudo cargar el ejemplo. Comprueba tu conexión.')}};
 $('#closeReader').onclick=closeReader;$('#zoomOut').onclick=()=>changeZoom(-.1);$('#zoomIn').onclick=()=>changeZoom(.1);$('#fitWidth').onclick=()=>{zoom=1;changeZoom(0)};
-$('#readerFullscreen').onclick=()=>{if(document.fullscreenElement)document.exitFullscreen?.();else if($('#reader').requestFullscreen)$('#reader').requestFullscreen().catch(()=>toast('La vista de lectura ya ocupa la pantalla disponible.'));else toast('La vista de lectura ya ocupa la pantalla disponible.')};
 window.addEventListener('keydown',e=>{if($('#reader').hidden)return;if(e.key==='Escape')closeReader();if(e.target.matches('input'))return;if(['ArrowDown','ArrowUp','PageDown','PageUp',' '].includes(e.key)){e.preventDefault();const direction=['ArrowUp','PageUp'].includes(e.key)?-1:1;const amount=e.key.startsWith('Arrow')?60:$('#readerViewport').clientHeight*.85;$('#readerViewport').scrollBy({top:direction*amount,behavior:'auto'});}});
 let resizeTimer;window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{if(pdfReader)pdfReader.resize()},200)});
 $('#help').onclick=()=>$('#helpDialog').showModal();$('#helpMobile').onclick=()=>$('#helpDialog').showModal();$('.dialog-close').onclick=()=>$('#helpDialog').close();$('.dialog-done').onclick=()=>$('#helpDialog').close();for(const d of document.querySelectorAll('dialog'))d.onclick=e=>{if(e.target===d){const r=d.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)d.close()}};

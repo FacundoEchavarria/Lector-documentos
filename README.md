@@ -13,3 +13,5 @@ Documents are per browser/device. Clearing browser data clears the library, leav
 Validation: PDF fixture parsed using PDF.js, DOCX fixture parsed using Mammoth, real OLE DOC parsed using the browser bundle, and DOM interaction tests passed. Visual/browser QA was unavailable because this managed executor has no cua_repl tool. The Sites source helper was not installed; Git synchronization and static tar packaging were performed directly.
 
 Android: see `android/README.md`. The latest signed APK is linked in `releases/README.md`. Version 1.1.0 adds Android VIEW/SEND document intents and preserves the 1.0.0 signing identity.
+
+Version 1.1.1 fixes native CSS packaging when the Google Fonts import URL contains semicolons, adds a local Android fullscreen bridge with system-bar control, and verifies the stylesheet extracted from the signed APK. `node test/apk-style.mjs <apk>` checks the packaged colors and fullscreen rules.
