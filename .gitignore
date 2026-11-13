@@ -1,2 +1,6 @@
 node_modules/
 *.tar.gz
+android/build/
+*.keystore
+*.jks
+*.p12
