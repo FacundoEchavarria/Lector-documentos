@@ -86,7 +86,42 @@ const countBeforeRepeat=w.qa.getRecords().length;
 await w.hojaOpenAndroidDocuments([{url:'https://hoja.example/incoming/again',name:'Desde Android.docx',type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',modified:8}]);assert.equal(w.qa.getRecords().length,countBeforeRepeat);w.qa.closeReader();
 await w.qa.importFiles([file('Continuo.pdf',fs.readFileSync('dist/samples/ejemplo.pdf'))]);
 assert.equal(w.document.querySelectorAll('#pdfPages .pdf-page').length,2);assert.equal(w.document.querySelector('#prevPage'),null);assert.equal(w.document.querySelector('#nextPage'),null);assert.equal(w.document.querySelector('#readerType'),null);assert.equal(w.document.querySelector('#app').hidden,true);
-await new Promise(r=>setTimeout(r,120));assert.ok(w.document.querySelectorAll('#pdfPages canvas').length>=1);assert.doesNotMatch(w.document.querySelector('#pdfPages').textContent,/No se pudo/);assert.match(w.document.querySelector('#readerStatus').textContent,/Página 1 de 2/);w.qa.closeReader();
+await new Promise(r=>setTimeout(r,120));assert.ok(w.document.querySelectorAll('#pdfPages canvas').length>=1);assert.doesNotMatch(w.document.querySelector('#pdfPages').textContent,/No se pudo/);assert.match(w.document.querySelector('#readerStatus').textContent,/Página 1 de 2/);
+
+const pages=w.document.querySelector('#pdfPages');
+const firstPage=pages.querySelector('.pdf-page');
+const finger=(identifier,clientX,target)=>({identifier,clientX,clientY:240,target});
+function dispatchTouch(type,touches){
+ const event=new w.Event(type,{bubbles:true,cancelable:true});
+ Object.defineProperty(event,'touches',{value:touches});
+ viewport.dispatchEvent(event);
+ return event;
+}
+async function pinch(start,end,percentage){
+ const width=Number.parseFloat(firstPage.style.width);
+ const first=finger(1,60,firstPage);
+ assert.equal(dispatchTouch('touchstart',[first,finger(2,start,viewport)]).defaultPrevented,true);
+ assert.equal(dispatchTouch('touchmove',[finger(2,end,viewport),first]).defaultPrevented,true);
+ await new Promise(r=>w.requestAnimationFrame(r));
+ assert.match(pages.style.transform,/scale\(/);
+ assert.equal(Number.parseFloat(firstPage.style.width),width,'Preview avoids re-rendering the PDF while the fingers move');
+ dispatchTouch('touchend',[first]);
+ assert.equal(pages.style.transform,'');
+ assert.equal(w.document.querySelector('#zoomLabel').textContent,percentage);
+}
+assert.equal(dispatchTouch('touchmove',[finger(1,60,firstPage)]).defaultPrevented,false);
+await pinch(160,260,'200%');
+assert.equal(Number.parseFloat(firstPage.style.width),720);
+assert.ok(Math.abs(viewport.scrollLeft-60)<.01,'The PDF point under the original midpoint follows the fingers');
+w.document.querySelector('#readerFullscreen').click();
+assert.equal(w.document.querySelector('#reader').classList.contains('reading-fullscreen'),true);
+await new Promise(r=>w.requestAnimationFrame(r));
+await pinch(260,160,'100%');
+w.hojaNativeFullscreenChanged(false);
+await new Promise(r=>w.requestAnimationFrame(r));
+w.qa.closeReader();
+assert.equal(viewport.classList.contains('pdf-zoomable'),false);
+console.log('PASS PDF pinch zoom in normal and fullscreen reading, with midpoint anchoring without cancelling single touch events.');
 console.log('PASS PDF continuous integration and Android document delivery.');
 console.log('PASS DOM integration: DOCX import and read-only view, real legacy DOC extraction, favorites, filtering, search, IndexedDB persistence, corrupt and unsupported file handling');
 dom.window.close();

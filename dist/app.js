@@ -77,6 +77,11 @@ async function openDocument(record){
    record.page=position.page;record.pageOffset=position.offset;
    clearTimeout(positionTimer);positionTimer=setTimeout(()=>{if(!record.sample)dbOp('put',record).catch(()=>{})},250);
   },
+  onZoomChange(value){
+   if(token!==openToken)return;
+   zoom=value;
+   updateZoomControls();
+  },
   onError(){if(token===openToken)toast('No se pudo mostrar una de las páginas del PDF.');}
  });
  pdfReader=viewer;$('#readerLoading').hidden=true;$('#pdfPages').hidden=false;

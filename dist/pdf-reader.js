@@ -1,7 +1,7 @@
 /** Continuous, lazy PDF pages. Only pages near the viewport keep their canvases. */
 export class ContinuousPdfReader {
-  constructor({ pdfjs, container, viewport, onPositionChange = () => {}, onError = () => {} }) {
-    Object.assign(this, { pdfjs, container, viewport, onPositionChange, onError });
+  constructor({ pdfjs, container, viewport, onPositionChange = () => {}, onZoomChange = () => {}, onError = () => {} }) {
+    Object.assign(this, { pdfjs, container, viewport, onPositionChange, onZoomChange, onError });
     this.window = viewport.ownerDocument.defaultView;
     this.pages = [];
     this.active = new Set();
@@ -18,6 +18,10 @@ export class ContinuousPdfReader {
       });
     };
     viewport.addEventListener('scroll', this.handleScroll, { passive: true });
+    this.handleTouch = event => this.updatePinch(event);
+    this.touchEvents = ['touchstart', 'touchmove', 'touchend', 'touchcancel'];
+    for (const event of this.touchEvents) viewport.addEventListener(event, this.handleTouch, { passive: false });
+    viewport.classList.add('pdf-zoomable');
   }
 
   async open(pdf, { page = 1, offset = 0 } = {}) {
@@ -56,20 +60,21 @@ export class ContinuousPdfReader {
     return Math.max(100, this.viewport.clientWidth - padding);
   }
 
-  scaleFor(state) {
-    return Math.min(this.availableWidth() / state.natural.width, 1.35) * this.zoom;
+  scaleFor(state, availableWidth = this.availableWidth()) {
+    return Math.min(availableWidth / state.natural.width, 1.35) * this.zoom;
   }
 
   layout(anchor) {
-    let width = this.availableWidth();
+    const availableWidth = this.availableWidth();
+    let width = availableWidth;
     for (const state of this.pages) {
-      const scale = this.scaleFor(state);
+      const scale = this.scaleFor(state, availableWidth);
       state.height = state.natural.height * scale;
-      const pageWidth = state.natural.width * scale;
-      state.element.style.width = `${pageWidth}px`;
+      state.width = state.natural.width * scale;
+      state.element.style.width = `${state.width}px`;
       state.element.style.height = `${state.height}px`;
       state.element.style.setProperty('--scale-factor', scale);
-      width = Math.max(width, pageWidth);
+      width = Math.max(width, state.width);
     }
     this.container.style.width = `${Math.ceil(width)}px`;
     if (anchor) this.restorePosition(anchor);
@@ -96,6 +101,78 @@ export class ContinuousPdfReader {
   restorePosition({ page, offset = 0 }) {
     const state = this.pages[page - 1];
     if (state) this.viewport.scrollTop = this.topOf(state) + offset * state.height;
+  }
+
+  leftOf(state) { return this.container.offsetLeft + state.element.offsetLeft; }
+
+  pointInViewport({ x, y }) {
+    const rect = this.viewport.getBoundingClientRect();
+    return { x: x - rect.left - this.viewport.clientLeft, y: y - rect.top - this.viewport.clientTop };
+  }
+
+  zoomAnchor(center) {
+    const point = this.pointInViewport(center);
+    const documentX = point.x + this.viewport.scrollLeft;
+    const documentY = point.y + this.viewport.scrollTop;
+    const state = this.pageAt(documentY);
+    return {
+      state,
+      x: (documentX - this.leftOf(state)) / state.width,
+      y: (documentY - this.topOf(state)) / state.height
+    };
+  }
+
+  updatePinch(event) {
+    if (!this.ready) return;
+    const touches = Array.from(event.touches);
+    let pinch = this.pinch;
+    if (!pinch) {
+      if (event.type !== 'touchstart' || touches.length !== 2 || !touches.every(touch => this.viewport.contains(touch.target))) return;
+      const [first, second] = touches;
+      const start = midpoint(first, second);
+      const span = distance(first, second);
+      if (span < 1) return;
+      const rect = this.container.getBoundingClientRect();
+      this.container.style.transformOrigin = `${start.x - rect.left}px ${start.y - rect.top}px`;
+      this.pinch = {
+        ids: [first.identifier, second.identifier],
+        start, span,
+        anchor: this.zoomAnchor(start),
+        scrollLeft: this.viewport.scrollLeft,
+        scrollTop: this.viewport.scrollTop,
+        center: start,
+        zoom: this.zoom
+      };
+      if (event.cancelable) event.preventDefault();
+      return;
+    }
+
+    const [first, second] = pinch.ids.map(id => touches.find(touch => touch.identifier === id));
+    if (!first || !second || event.type === 'touchcancel') {
+      this.clearPinch();
+      if (pinch.zoom !== this.zoom || pinch.center !== pinch.start || pinch.needsResize) this.setZoom(pinch.zoom, pinch);
+      return;
+    }
+    if (event.cancelable) event.preventDefault();
+    if (event.type !== 'touchmove') return;
+
+    pinch.center = midpoint(first, second);
+    pinch.zoom = Math.max(.6, Math.min(2.5, this.zoom * distance(first, second) / pinch.span));
+    if (pinch.frame) return;
+    pinch.frame = this.window.requestAnimationFrame(() => {
+      pinch.frame = null;
+      const dx = pinch.center.x - pinch.start.x + this.viewport.scrollLeft - pinch.scrollLeft;
+      const dy = pinch.center.y - pinch.start.y + this.viewport.scrollTop - pinch.scrollTop;
+      this.container.style.transform = `translate(${dx}px, ${dy}px) scale(${pinch.zoom / this.zoom})`;
+    });
+  }
+
+  clearPinch() {
+    if (!this.pinch) return;
+    if (this.pinch.frame) this.window.cancelAnimationFrame(this.pinch.frame);
+    this.pinch = null;
+    this.container.style.transform = '';
+    this.container.style.transformOrigin = '';
   }
 
   updateVisible() {
@@ -206,18 +283,33 @@ export class ContinuousPdfReader {
     state.placeholder.hidden = false;
   }
 
-  setZoom(value) {
+  setZoom(value, focus) {
     if (this.destroyed) return;
-    const anchor = this.getPosition();
-    this.generation++;
+    this.clearPinch();
+    const changed = value !== this.zoom;
+    const position = focus ? null : this.getPosition();
+    if (changed || !focus || focus.needsResize) {
+      this.generation++;
+      this.queue = [];
+      for (const state of this.pages) this.release(state);
+    }
     this.zoom = value;
-    this.queue = [];
-    for (const state of this.pages) this.release(state);
-    this.layout(anchor);
+    this.layout(position);
+    if (focus) {
+      const point = this.pointInViewport(focus.center);
+      const { state, x, y } = focus.anchor;
+      this.viewport.scrollLeft = this.leftOf(state) + x * state.width - point.x;
+      this.viewport.scrollTop = this.topOf(state) + y * state.height - point.y;
+    }
+    if (changed) this.onZoomChange(value);
     this.updateVisible();
   }
 
-  resize() { this.setZoom(this.zoom); }
+  resize() {
+    // Android can report its new viewport size shortly after entering fullscreen.
+    if (this.pinch) this.pinch.needsResize = true;
+    else this.setZoom(this.zoom);
+  }
 
   destroy() {
     this.ready = false;
@@ -225,8 +317,19 @@ export class ContinuousPdfReader {
     this.generation++;
     this.queue = [];
     this.viewport.removeEventListener('scroll', this.handleScroll);
+    for (const event of this.touchEvents) this.viewport.removeEventListener(event, this.handleTouch);
+    this.viewport.classList.remove('pdf-zoomable');
+    this.clearPinch();
     if (this.frame) this.window.cancelAnimationFrame(this.frame);
     for (const state of this.pages) this.release(state);
     this.container.replaceChildren();
   }
+}
+
+function midpoint(first, second) {
+  return { x: (first.clientX + second.clientX) / 2, y: (first.clientY + second.clientY) / 2 };
+}
+
+function distance(first, second) {
+  return Math.hypot(first.clientX - second.clientX, first.clientY - second.clientY);
 }
