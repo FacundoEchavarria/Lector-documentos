@@ -31,6 +31,7 @@ with zipfile.ZipFile(apk) as archive:
     assert dex.startswith(b'dex\n')
     assert b'HojaAndroid' in dex and b'setReadingFullscreen' in dex and b'WindowInsetsController' in dex
     assert b'isSystemDarkTheme' in dex and b'setDarkTheme' in dex
+    assert b'setSupportZoom' in dex
     assert b'<symbol' not in html and b'<use ' not in html
 
 version = ET.parse(root / 'android/AndroidManifest.xml').getroot().attrib

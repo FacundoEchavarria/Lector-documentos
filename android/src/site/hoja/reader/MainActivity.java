@@ -72,6 +72,8 @@ public final class MainActivity extends Activity {
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
+        // The document viewers apply their own zoom inside the page.
+        settings.setSupportZoom(false);
         if (Build.VERSION.SDK_INT >= 29 && Build.VERSION.SDK_INT < 33) settings.setForceDark(WebSettings.FORCE_DARK_OFF);
         if (Build.VERSION.SDK_INT >= 33) settings.setAlgorithmicDarkeningAllowed(false);
         settings.setAllowFileAccess(false);
