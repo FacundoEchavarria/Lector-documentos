@@ -18,14 +18,26 @@ function draw(){
  $('#navCount').textContent=records.length;$('#favoriteCount').textContent=records.filter(r=>r.favorite).length;
  const needle=$('#search').value.toLocaleLowerCase('es');
  const items=records.filter(r=>(mode!=='favorites'||r.favorite)&&(filter==='all'||(filter==='pdf'?r.ext==='pdf':r.ext!=='pdf'))&&r.name.toLocaleLowerCase('es').includes(needle)).sort((a,b)=>$('#sort').value==='name'?a.name.localeCompare(b.name,'es'):(b.opened||b.added)-(a.opened||a.added));
- $('#docCount').textContent=items.length;$('#listTitle').firstChild.textContent=mode==='favorites'?'Favoritos ':'Mi biblioteca ';
- $('#breadcrumb').textContent=mode==='favorites'?'Favoritos':'Documentos';
- $('#listSubtitle').textContent=mode==='favorites'?'Las lecturas que quieres tener cerca.':'Tus lecturas, siempre a mano.';
- $('#documentList').innerHTML=items.map(r=>`<div class="document-card"><button class="document-open" data-open="${r.id}"><div class="document-top"><span class="sample-icon ${r.ext==='pdf'?'pdf':'word'}">${icon('file')}</span><small>${r.ext.toUpperCase()} · ${size(r.size)}</small></div><h3>${escape(r.name)}</h3><p>${r.opened?'Última lectura':'Añadido'} · ${date(r.opened||r.added)}</p></button><div class="card-actions"><button class="icon-button ${r.favorite?'is-favorite':''}" data-fav="${r.id}" aria-label="${r.favorite?'Quitar de':'Añadir a'} favoritos" aria-pressed="${!!r.favorite}">${icon('star')}</button><button class="icon-button" data-delete="${r.id}" aria-label="Quitar ${escape(r.name)} de la biblioteca">${icon('trash')}</button></div></div>`).join('');
+ $('#docCount').textContent=items.length;
+ $('#listTitle').firstChild.textContent=mode==='favorites'?'Favoritos ':'Documentos ';
+ $('#documentList').innerHTML=items.map(record=>`
+   <div class="document-card">
+     <button class="document-open" data-open="${record.id}" title="${escape(record.name)}">
+       <span class="sample-icon ${record.ext==='pdf'?'pdf':'word'}">${icon('file')}</span>
+       <span class="document-info">
+         <strong>${escape(record.name)}</strong>
+         <small>${record.ext.toUpperCase()} · ${size(record.size)} · ${date(record.opened||record.added)}</small>
+       </span>
+     </button>
+     <div class="card-actions">
+       <button class="icon-button ${record.favorite?'is-favorite':''}" data-fav="${record.id}" aria-label="${record.favorite?'Quitar de':'Añadir a'} favoritos" aria-pressed="${!!record.favorite}">${icon('star')}</button>
+       <button class="icon-button" data-delete="${record.id}" aria-label="Quitar ${escape(record.name)} de la biblioteca">${icon('trash')}</button>
+     </div>
+   </div>`).join('');
  $('#emptyState').hidden=items.length>0;
  const noRecords=!records.length&&mode==='all'&&filter==='all'&&!needle;
- $('#emptyState h3').textContent=noRecords?'Tu próxima lectura empieza aquí':mode==='favorites'&&!needle?'Tus favoritos tendrán su lugar aquí':'No encontramos documentos';
- $('#emptyState p').textContent=noRecords?'Abre tu primer documento y lo encontrarás en este espacio.':mode==='favorites'&&!needle?'Pulsa la estrella de un documento para tenerlo a mano.':'Prueba con otro nombre o cambia el filtro.';
+ $('#emptyState h3').textContent=noRecords?'Aún no hay documentos':mode==='favorites'&&!needle?'Aún no hay favoritos':'No encontramos documentos';
+ $('#emptyState p').textContent=noRecords?'Los archivos que abras aparecerán aquí.':mode==='favorites'&&!needle?'Pulsa la estrella de un documento para tenerlo a mano.':'Prueba con otro nombre o cambia el filtro.';
  $('#examplesSection').hidden=mode==='favorites'||!!needle;
 }
 const size=n=>n>=1048576?(n/1048576).toFixed(1)+' MB':Math.max(1,Math.round(n/1024))+' KB';
@@ -102,18 +114,28 @@ $('#openFile').onclick=()=>$('#fileInput').click();$('#fileInput').onchange=e=>i
 for(const event of ['dragenter','dragover'])$('#dropzone').addEventListener(event,e=>{e.preventDefault();$('#dropzone').classList.add('dragover')});
 for(const event of ['dragleave','drop'])$('#dropzone').addEventListener(event,e=>{e.preventDefault();$('#dropzone').classList.remove('dragover');if(event==='drop')importFiles(e.dataTransfer.files)});
 window.addEventListener('dragover',e=>e.preventDefault());window.addEventListener('drop',e=>e.preventDefault());
-for(const b of document.querySelectorAll('[data-nav]'))b.onclick=()=>{mode=b.dataset.nav;document.querySelectorAll('[data-nav]').forEach(el=>el.classList.toggle('active',el===b));draw()};
-for(const b of document.querySelectorAll('[data-filter]'))b.onclick=()=>{filter=b.dataset.filter;document.querySelectorAll('[data-filter]').forEach(el=>el.classList.toggle('selected',el===b));draw()};
+function bindSelection(selector, activeClass, setSelection){
+ const buttons=document.querySelectorAll(selector);
+ for(const button of buttons)button.onclick=()=>{
+  setSelection(button);
+  for(const item of buttons){
+   const selected=item===button;
+   item.classList.toggle(activeClass,selected);
+   item.setAttribute('aria-pressed',String(selected));
+  }
+  draw();
+ };
+}
+bindSelection('[data-nav]','active',button=>{mode=button.dataset.nav});
+bindSelection('[data-filter]','selected',button=>{filter=button.dataset.filter});
 $('#search').oninput=draw;$('#sort').onchange=draw;
 $('#documentList').onclick=async e=>{const open=e.target.closest('[data-open]');if(open)return openDocument(records.find(r=>r.id===open.dataset.open));const fav=e.target.closest('[data-fav]');if(fav){const r=records.find(r=>r.id===fav.dataset.fav);r.favorite=!r.favorite;try{await dbOp('put',r)}catch{toast('El cambio se conservará durante esta sesión.')}draw()}const del=e.target.closest('[data-delete]');if(del){pendingDelete=del.dataset.delete;$('#deleteName').textContent=records.find(r=>r.id===pendingDelete).name;$('#deleteDialog').showModal()}};
 $('#cancelDelete').onclick=()=>$('#deleteDialog').close();$('#confirmDelete').onclick=async()=>{try{if(db)await dbOp('delete',pendingDelete);records=records.filter(r=>r.id!==pendingDelete);$('#deleteDialog').close();draw();toast('Documento quitado de la biblioteca.')}catch{toast('No se pudo quitar el documento. Inténtalo de nuevo.')}};
 for(const b of document.querySelectorAll('[data-example]'))b.onclick=async()=>{const ext=b.dataset.example;try{const response=await fetch(`samples/ejemplo.${ext}`);if(!response.ok)throw new Error();openDocument({id:'sample-'+ext,ext,name:ext==='pdf'?'El placer de leer sin prisa.pdf':'Bienvenido a tu nuevo espacio.docx',blob:await response.blob(),sample:true})}catch{toast('No se pudo cargar el ejemplo. Comprueba tu conexión.')}};
 $('#closeReader').onclick=closeReader;$('#zoomOut').onclick=()=>changeZoom(-.1);$('#zoomIn').onclick=()=>changeZoom(.1);$('#fitWidth').onclick=()=>{zoom=1;changeZoom(0)};
-window.addEventListener('keydown',e=>{if($('#reader').hidden)return;if(e.key==='Escape')closeReader();if(e.target.matches('input'))return;if(['ArrowDown','ArrowUp','PageDown','PageUp',' '].includes(e.key)){e.preventDefault();const direction=['ArrowUp','PageUp'].includes(e.key)?-1:1;const amount=e.key.startsWith('Arrow')?60:$('#readerViewport').clientHeight*.85;$('#readerViewport').scrollBy({top:direction*amount,behavior:'auto'});}});
+window.addEventListener('keydown',e=>{if($('#reader').hidden||e.defaultPrevented||$('dialog[open]'))return;if(e.key==='Escape')closeReader();if(e.key===' ' && e.target.closest?.('input, button, select, a'))return;if(['ArrowDown','ArrowUp','PageDown','PageUp',' '].includes(e.key)){e.preventDefault();const direction=['ArrowUp','PageUp'].includes(e.key)?-1:1;const amount=e.key.startsWith('Arrow')?60:$('#readerViewport').clientHeight*.85;$('#readerViewport').scrollBy({top:direction*amount,behavior:'auto'});}});
 let resizeTimer;window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{if(pdfReader)pdfReader.resize()},200)});
-$('#help').onclick=()=>$('#helpDialog').showModal();$('#helpMobile').onclick=()=>$('#helpDialog').showModal();$('.dialog-close').onclick=()=>$('#helpDialog').close();$('.dialog-done').onclick=()=>$('#helpDialog').close();for(const d of document.querySelectorAll('dialog'))d.onclick=e=>{if(e.target===d){const r=d.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)d.close()}};
-try{document.body.classList.toggle('dark',localStorage.getItem('hoja-theme')==='dark')}catch{}
-$('#theme').onclick=()=>{document.body.classList.toggle('dark');try{localStorage.setItem('hoja-theme',document.body.classList.contains('dark')?'dark':'light')}catch{}};
+$('#help').onclick=()=>$('#helpDialog').showModal();$('.dialog-close').onclick=()=>$('#helpDialog').close();$('.dialog-done').onclick=()=>$('#helpDialog').close();for(const d of document.querySelectorAll('dialog'))d.onclick=e=>{if(e.target===d){const r=d.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)d.close()}};
 try{db=await initDB();records=await dbOp('getAll')}catch{toast('El almacenamiento no está disponible. Podrás leer archivos durante esta sesión.')}draw();
 
 // Android passes selected content URIs through a local, one-use HTTPS endpoint.

@@ -1,10 +1,10 @@
 {
   "name": "hoja-reader",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "check": "node --check dist/app.js && node --check dist/pdf-reader.js && node test/qa.mjs && node test/pdf-reader.mjs && node test/contrast.mjs && node test/reading-mode.mjs",
+    "check": "node --check dist/app.js && node --check dist/theme.js && node --check dist/pdf-reader.js && node test/qa.mjs && node test/pdf-reader.mjs && node test/contrast.mjs && node test/reading-mode.mjs",
     "bundle:doc": "browserify legacy.cjs -o dist/vendor/legacy.js"
   },
   "keywords": [],

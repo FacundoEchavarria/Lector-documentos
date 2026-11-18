@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.res.AssetManager;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.database.Cursor;
 import android.provider.OpenableColumns;
@@ -42,6 +43,8 @@ import java.util.Locale;
 /** Local-only reader. The system picker grants access to selected documents. */
 public final class MainActivity extends Activity {
     private static final String HOST = "appassets.androidplatform.net";
+    private static final String DARK_APPEARANCE = "dark_appearance";
+    private static final int DARK_SURFACE = Color.rgb(23, 34, 30);
     private static final int PICK_DOCUMENT = 200;
     private static final long MAX_DOCUMENT_BYTES = 50L * 1024 * 1024;
     private final ConcurrentHashMap<String, IncomingDocument> incoming = new ConcurrentHashMap<>();
@@ -53,14 +56,18 @@ public final class MainActivity extends Activity {
     private FrameLayout root;
     private ValueCallback<Uri[]> fileCallback;
     private boolean readingFullscreen;
+    private boolean darkAppearance;
+    private volatile boolean systemDark;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
+        systemDark = isNightMode(getResources().getConfiguration());
+        darkAppearance = getPreferences(MODE_PRIVATE).getBoolean(DARK_APPEARANCE, systemDark);
         root = new FrameLayout(this);
-        root.setBackgroundColor(Color.rgb(248, 249, 245));
         webView = new WebView(this);
         root.addView(webView, new FrameLayout.LayoutParams(-1, -1));
         setContentView(root);
+        applyAppearance();
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
@@ -71,7 +78,6 @@ public final class MainActivity extends Activity {
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         settings.setMediaPlaybackRequiresUserGesture(true);
         settings.setSupportMultipleWindows(false);
-        webView.setBackgroundColor(Color.rgb(248, 249, 245));
         webView.addJavascriptInterface(new ReaderBridge(), "HojaAndroid");
         webView.setWebViewClient(new WebViewClient() {
             @Override public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
@@ -101,7 +107,11 @@ public final class MainActivity extends Activity {
                 }
             }
             @Override public void onPageFinished(WebView view, String url) {
-                if (url.equals("https://" + HOST + "/index.html")) { pageLoaded = true; deliverPending(); }
+                if (url.equals("https://" + HOST + "/index.html")) {
+                    pageLoaded = true;
+                    notifySystemTheme();
+                    deliverPending();
+                }
             }
             @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
@@ -289,14 +299,62 @@ public final class MainActivity extends Activity {
     /** Only UI state is exposed; documents stay behind the local asset origin. */
     public final class ReaderBridge {
         @JavascriptInterface public void setReadingFullscreen(final boolean enabled) {
-            runOnUiThread(new Runnable() {
+            onLocalPage(new Runnable() {
                 @Override public void run() {
-                    if (destroyed || webView.getUrl() == null) return;
-                    Uri origin = Uri.parse(webView.getUrl());
-                    if ("https".equals(origin.getScheme()) && HOST.equals(origin.getHost())) MainActivity.this.setReadingFullscreen(enabled);
+                    MainActivity.this.setReadingFullscreen(enabled);
                 }
             });
         }
+
+        @JavascriptInterface public boolean isSystemDarkTheme() {
+            return systemDark;
+        }
+
+        @JavascriptInterface public void setDarkTheme(final boolean enabled) {
+            onLocalPage(new Runnable() {
+                @Override public void run() {
+                    if (darkAppearance == enabled) return;
+                    darkAppearance = enabled;
+                    getPreferences(MODE_PRIVATE).edit().putBoolean(DARK_APPEARANCE, enabled).apply();
+                    applyAppearance();
+                }
+            });
+        }
+    }
+
+    private void onLocalPage(final Runnable action) {
+        runOnUiThread(new Runnable() {
+            @Override public void run() {
+                if (destroyed || webView.getUrl() == null) return;
+                Uri origin = Uri.parse(webView.getUrl());
+                if ("https".equals(origin.getScheme()) && HOST.equals(origin.getHost())) action.run();
+            }
+        });
+    }
+
+    private static boolean isNightMode(Configuration configuration) {
+        return (configuration.uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+    }
+
+    @Override public void onConfigurationChanged(Configuration configuration) {
+        super.onConfigurationChanged(configuration);
+        boolean night = isNightMode(configuration);
+        if (systemDark == night) return;
+        systemDark = night;
+        notifySystemTheme();
+    }
+
+    private void notifySystemTheme() {
+        if (!destroyed) webView.evaluateJavascript("window.hojaSystemThemeChanged&&window.hojaSystemThemeChanged()", null);
+    }
+
+    private void applyAppearance() {
+        int surface = darkAppearance ? DARK_SURFACE : Color.WHITE;
+        root.setBackgroundColor(surface);
+        webView.setBackgroundColor(surface);
+        getWindow().setStatusBarColor(surface);
+        getWindow().setNavigationBarColor(surface);
+        applySystemBars();
     }
 
     private void setReadingFullscreen(boolean enabled) {
@@ -309,12 +367,15 @@ public final class MainActivity extends Activity {
         if (Build.VERSION.SDK_INT >= 30) {
             WindowInsetsController controller = getWindow().getInsetsController();
             if (controller == null) return;
+            int lightBars = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
+            controller.setSystemBarsAppearance(darkAppearance ? 0 : lightBars, lightBars);
             if (readingFullscreen) {
                 controller.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
                 controller.hide(WindowInsets.Type.systemBars());
             } else controller.show(WindowInsets.Type.systemBars());
         } else {
-            int flags = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+            int flags = darkAppearance ? 0 : (View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
             if (readingFullscreen) flags |= View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
             getWindow().getDecorView().setSystemUiVisibility(flags);
         }

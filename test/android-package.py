@@ -18,7 +18,7 @@ def tool(name, *args):
 
 with zipfile.ZipFile(apk) as archive:
     assert archive.testzip() is None
-    for file in ['app.js', 'pdf-reader.js', 'reading-mode.js', 'icons.js', 'vendor/pdf.mjs', 'vendor/pdf.worker.mjs', 'vendor/mammoth.js', 'vendor/legacy.js']:
+    for file in ['app.js', 'pdf-reader.js', 'reading-mode.js', 'theme.js', 'icons.js', 'vendor/pdf.mjs', 'vendor/pdf.worker.mjs', 'vendor/mammoth.js', 'vendor/legacy.js']:
         assert archive.read('assets/web/' + file) == (root / 'dist' / file).read_bytes(), file
     html = archive.read('assets/web/index.html')
     assert b'id="pdfPages"' in html
@@ -30,6 +30,7 @@ with zipfile.ZipFile(apk) as archive:
     dex = archive.read('classes.dex')
     assert dex.startswith(b'dex\n')
     assert b'HojaAndroid' in dex and b'setReadingFullscreen' in dex and b'WindowInsetsController' in dex
+    assert b'isSystemDarkTheme' in dex and b'setDarkTheme' in dex
     assert b'<symbol' not in html and b'<use ' not in html
 
 version = ET.parse(root / 'android/AndroidManifest.xml').getroot().attrib
