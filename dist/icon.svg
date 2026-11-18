@@ -1,6 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Hoja">
-  <rect width="128" height="128" rx="24" fill="#8b402f"/>
-  <path d="M91 96H46a9 9 0 0 1 0-18h45V41a9 9 0 0 0-9-9H46a9 9 0 0 0-9 9v46"
-        fill="none" stroke="#fffaf3" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M53 32h20v33l-10-7-10 7Z" fill="#fffaf3"/>
+  <rect width="128" height="128" rx="28" fill="#27368b"/>
+  <g fill="#f9faff" transform="translate(16 16)">
+    <path d="M12 14H29L35 20V40L54 33L47 59L35 64V82H12Z"/>
+    <path d="M61 14H84V82H67L61 76V54L52 57L59 31L61 30Z"/>
+  </g>
 </svg>

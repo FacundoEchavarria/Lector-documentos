@@ -1,5 +1,5 @@
 <resources>
-    <color name="icon_background">#8b402f</color>
+    <color name="icon_background">#27368b</color>
     <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:forceDarkAllowed">false</item>
         <item name="android:fontFamily">sans</item>
