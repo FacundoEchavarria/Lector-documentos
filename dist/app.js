@@ -1,15 +1,16 @@
 import * as pdfjs from './vendor/pdf.mjs';
 import { ContinuousPdfReader } from './pdf-reader.js';
+import { DocxReader } from './docx-reader.js';
 import { createReadingMode } from './reading-mode.js';
 import { icon } from './icons.js';
 pdfjs.GlobalWorkerOptions.workerSrc = new URL('./vendor/pdf.worker.mjs', import.meta.url).href;
 const $ = s => document.querySelector(s);
 const escape = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let records=[], mode='all', filter='all', db, current, pdf, pdfReader, zoom=1, openToken=0, pendingDelete, positionTimer, documentLoading=false;
+let records=[], mode='all', filter='all', db, current, pdf, pdfReader, docxReader, zoom=1, openToken=0, pendingDelete, positionTimer, documentLoading=false;
 let toastTimer;
 const readingMode=createReadingMode({reader:$('#reader'),button:$('#readerFullscreen'),exitButton:$('#exitReadingFullscreen'),onError:message=>toast(message),onLayoutChange(){
  const viewer=pdfReader;const position=viewer?.getPosition();
- requestAnimationFrame(()=>{if(viewer&&viewer===pdfReader){viewer.resize();viewer.restorePosition(position);viewer.updateVisible();}});
+ requestAnimationFrame(()=>{if(viewer&&viewer===pdfReader){viewer.resize();viewer.restorePosition(position);viewer.updateVisible();}docxReader?.resize();});
 }});
 function toast(msg){$('#toast').textContent=msg;$('#toast').classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('visible'),4500)}
 async function initDB(){return new Promise((resolve,reject)=>{let req=indexedDB.open('hoja-library',1);req.onupgradeneeded=()=>req.result.createObjectStore('documents',{keyPath:'id'});req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
@@ -59,11 +60,12 @@ async function openDocument(record){
  savePosition();
  const token=++openToken;
  pdfReader?.destroy();pdfReader=null;
+ docxReader?.destroy();docxReader=null;
  if(pdf){pdf.destroy();pdf=null}
  current=record;zoom=1;documentLoading=true;
  $('#reader').hidden=false;$('#app').inert=true;$('#app').hidden=true;document.body.style.overflow='hidden';$('#closeReader').focus();$('#readerName').textContent=record.name;
  $('#readerStatus').textContent=record.ext==='pdf'?'PDF · Solo lectura':record.ext==='doc'?'DOC · Solo lectura':'Word · Solo lectura';
- $('#pdfPages').hidden=true;$('#wordContent').hidden=true;$('#wordContent').replaceChildren();$('#readerLoading').hidden=false;$('#readerLoading').textContent='Abriendo tu documento…';updateZoomControls();$('#readerViewport').scrollTo(0,0);
+ $('#pdfPages').hidden=true;$('#docxPages').hidden=true;$('#wordContent').hidden=true;$('#wordContent').replaceChildren();$('#readerLoading').hidden=false;$('#readerLoading').textContent='Abriendo tu documento…';updateZoomControls();$('#readerViewport').scrollTo(0,0);
  try{
  const bytes=await record.blob.arrayBuffer();if(token!==openToken)return;
  if(record.ext==='pdf'){
@@ -86,17 +88,26 @@ async function openDocument(record){
  });
  pdfReader=viewer;$('#readerLoading').hidden=true;$('#pdfPages').hidden=false;
  await viewer.open(loaded,{page:record.page||1,offset:record.pageOffset||0});
- }else{
- let html;
- if(record.ext==='docx'){const result=await mammoth.convertToHtml({arrayBuffer:bytes});html=DOMPurify.sanitize(result.value,{FORBID_TAGS:['style','script','iframe','form','object','embed','input','button'],FORBID_ATTR:['contenteditable']})}
- else{const text=await window.readLegacyDoc(bytes);if(!text.trim())throw new Error('empty');html=text.split(/\n+/).map(p=>`<p>${escape(p)}</p>`).join('')}
+ }else if(record.ext==='docx'){
+ const container=$('#docxPages');
+ const viewer=new DocxReader({container,viewport:$('#readerViewport')});
+ docxReader=viewer;
+ container.classList.add('docx-loading');container.hidden=false;
+ const count=await viewer.open(bytes);
  if(token!==openToken)return;
- $('#wordContent').innerHTML=html||'<p>Este documento no contiene texto visible.</p>';$('#wordContent').style.fontSize='16px';$('#wordContent').hidden=false;
- $('#wordContent').querySelectorAll('a').forEach(a=>{a.target='_blank';a.rel='noopener noreferrer'});
+ $('#readerLoading').hidden=true;
+ container.classList.remove('docx-loading');
+ viewer.resize();
+ $('#readerStatus').textContent=`DOCX · ${count} ${count===1?'página':'páginas'}`;
+ }else{
+ const text=await window.readLegacyDoc(bytes);if(!text.trim())throw new Error('empty');
+ if(token!==openToken)return;
+ $('#wordContent').innerHTML=text.split(/\n+/).map(p=>`<p>${escape(p)}</p>`).join('');
+ $('#wordContent').style.fontSize='16px';$('#wordContent').hidden=false;
  }
  if(token!==openToken)return;$('#readerLoading').hidden=true;documentLoading=false;updateZoomControls();
  record.opened=Date.now();if(!record.sample){try{await dbOp('put',record)}catch{}draw()}
- }catch(error){if(token!==openToken)return;$('#readerLoading').hidden=false;$('#readerLoading').textContent='No se pudo abrir este documento. Puede estar dañado, protegido o tener un formato no compatible. Vuelve a la biblioteca y prueba con otro archivo.';$('#pdfPages').hidden=true;$('#wordContent').hidden=true;console.error('Document read failed:',error.name)}
+ }catch(error){if(token!==openToken)return;docxReader?.destroy();docxReader=null;$('#docxPages').hidden=true;$('#readerLoading').hidden=false;$('#readerLoading').textContent='No se pudo abrir este documento. Puede estar dañado, protegido o tener un formato no compatible. Vuelve a la biblioteca y prueba con otro archivo.';$('#pdfPages').hidden=true;$('#wordContent').hidden=true;console.error('Document read failed:',error.name)}
 }
 function savePosition(){
  clearTimeout(positionTimer);
@@ -105,6 +116,7 @@ function savePosition(){
 function closeReader(){
  readingMode.exit();
  savePosition();openToken++;pdfReader?.destroy();pdfReader=null;if(pdf){pdf.destroy();pdf=null}
+ docxReader?.destroy();docxReader=null;
  $('#reader').hidden=true;$('#app').inert=false;$('#app').hidden=false;document.body.style.overflow='';$('#wordContent').replaceChildren();$('#openFile').focus();draw();
 }
 function updateZoomControls(){
@@ -112,7 +124,7 @@ function updateZoomControls(){
 }
 function changeZoom(delta){
  zoom=Math.max(.6,Math.min(2.5,Math.round((zoom+delta)*10)/10));updateZoomControls();
- if(pdfReader)pdfReader.setZoom(zoom);else $('#wordContent').style.fontSize=(16*zoom)+'px';
+ if(pdfReader)pdfReader.setZoom(zoom);else if(docxReader)docxReader.setZoom(zoom);else $('#wordContent').style.fontSize=(16*zoom)+'px';
 }
 $('#openFile').onclick=()=>$('#fileInput').click();$('#fileInput').onchange=e=>importFiles(e.target.files);
 for(const event of ['dragenter','dragover'])$('#dropzone').addEventListener(event,e=>{e.preventDefault();$('#dropzone').classList.add('dragover')});
@@ -138,7 +150,7 @@ $('#cancelDelete').onclick=()=>$('#deleteDialog').close();$('#confirmDelete').on
 for(const b of document.querySelectorAll('[data-example]'))b.onclick=async()=>{const ext=b.dataset.example;try{const response=await fetch(`samples/ejemplo.${ext}`);if(!response.ok)throw new Error();openDocument({id:'sample-'+ext,ext,name:ext==='pdf'?'El placer de leer sin prisa.pdf':'Bienvenido a tu nuevo espacio.docx',blob:await response.blob(),sample:true})}catch{toast('No se pudo cargar el ejemplo. Comprueba tu conexión.')}};
 $('#closeReader').onclick=closeReader;$('#zoomOut').onclick=()=>changeZoom(-.1);$('#zoomIn').onclick=()=>changeZoom(.1);$('#fitWidth').onclick=()=>{zoom=1;changeZoom(0)};
 window.addEventListener('keydown',e=>{if($('#reader').hidden||e.defaultPrevented||$('dialog[open]'))return;if(e.key==='Escape')closeReader();if(e.key===' ' && e.target.closest?.('input, button, select, a'))return;if(['ArrowDown','ArrowUp','PageDown','PageUp',' '].includes(e.key)){e.preventDefault();const direction=['ArrowUp','PageUp'].includes(e.key)?-1:1;const amount=e.key.startsWith('Arrow')?60:$('#readerViewport').clientHeight*.85;$('#readerViewport').scrollBy({top:direction*amount,behavior:'auto'});}});
-let resizeTimer;window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{if(pdfReader)pdfReader.resize()},200)});
+let resizeTimer;window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{pdfReader?.resize();docxReader?.resize();},200)});
 $('#help').onclick=()=>$('#helpDialog').showModal();$('.dialog-close').onclick=()=>$('#helpDialog').close();$('.dialog-done').onclick=()=>$('#helpDialog').close();for(const d of document.querySelectorAll('dialog'))d.onclick=e=>{if(e.target===d){const r=d.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)d.close()}};
 try{db=await initDB();records=await dbOp('getAll')}catch{toast('El almacenamiento no está disponible. Podrás leer archivos durante esta sesión.')}draw();
 

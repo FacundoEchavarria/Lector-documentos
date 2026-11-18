@@ -5,6 +5,8 @@ import vm from 'node:vm';
 import {webcrypto} from 'node:crypto';
 import assert from 'node:assert/strict';
 import {ContinuousPdfReader} from '../dist/pdf-reader.js';
+import {DocxReader, paginateDocxPage} from '../dist/docx-reader.js';
+import JSZip from 'jszip';
 import {createReadingMode} from '../dist/reading-mode.js';
 import {icon} from '../dist/icons.js';
 import {createCanvas,Path2D,DOMMatrix,ImageData} from '@napi-rs/canvas';
@@ -44,18 +46,64 @@ w.document.querySelector('#themeDialog').close();
 const viewport=w.document.querySelector('#readerViewport');Object.defineProperties(viewport,{clientWidth:{get:()=>360},clientHeight:{get:()=>640}});
 Object.defineProperty(w.HTMLElement.prototype,'offsetTop',{get(){if(!this.classList.contains('pdf-page'))return 0;let top=0;for(let node=this.previousElementSibling;node;node=node.previousElementSibling)top+=(parseFloat(node.style.height)||0)+24;return top;}});
 w.HTMLCanvasElement.prototype.getContext=function(){if(!this.backing)this.backing=createCanvas(this.width,this.height);return this.backing.getContext('2d')};
-for(const file of ['mammoth','purify','legacy'])w.eval(fs.readFileSync(`dist/vendor/${file}.js`,'utf8'));
+w.setImmediate=setImmediate;w.clearImmediate=clearImmediate;
+for(const file of ['jszip','docx-preview','purify','legacy'])w.eval(fs.readFileSync(`dist/vendor/${file}.js`,'utf8'));
+w.DocxReader=DocxReader;
 let code=fs.readFileSync('dist/app.js','utf8').replace(/^import .*\n/gm,'').replace(/import.meta.url/g,"'https://hoja.example/app.js'");
 code=code.replace("console.error('Document read failed:',error.name)","console.error('Expected document error:',error.name)");
 const context=dom.getInternalVMContext();
 await new vm.Script(`(async()=>{${code}\nwindow.qa={importFiles,openDocument,closeReader,draw,dbOp,getRecords:()=>records};})()`).runInContext(context);
-const mammothOriginal=w.mammoth.convertToHtml;w.mammoth.convertToHtml=arg=>mammothOriginal({...arg,arrayBuffer:new w.Uint8Array(new Uint8Array(arg.arrayBuffer)).buffer});
 const file=(name,bytes)=>new File([bytes],name,{lastModified:100});
-const docxBytes=fs.readFileSync('dist/samples/ejemplo.docx');
+const originalDocx=await JSZip.loadAsync(fs.readFileSync('dist/samples/ejemplo.docx'));
+const wordXml=await originalDocx.file('word/document.xml').async('string');
+const formattedStart='<w:p><w:r><w:rPr><w:b/><w:i/><w:color w:val="A52C29"/><w:sz w:val="36"/></w:rPr><w:t>Primera página</w:t></w:r></w:p><w:p><w:r><w:br w:type="page"/></w:r></w:p>';
+assert.ok(wordXml.includes('<w:body>'));
+originalDocx.file('word/document.xml',wordXml.replace('<w:body>','<w:body>'+formattedStart));
+const docxBytes=await originalDocx.generateAsync({type:'nodebuffer'});
 await w.qa.importFiles([file('Lectura.docx',docxBytes)]);
 assert.equal(w.document.querySelector('#reader').hidden,false);
-assert.match(w.document.querySelector('#wordContent').textContent,/Bienvenido/);
-assert.equal(w.document.querySelectorAll('#wordContent [contenteditable]').length,0);
+const docxFrame=w.document.querySelector('#docxPages iframe');
+assert.equal(docxFrame.getAttribute('sandbox'),'allow-same-origin');
+const docxDoc=docxFrame.contentDocument;
+const wordPages=docxDoc.querySelectorAll('section.hoja-docx');
+assert.equal(wordPages.length,2);
+assert.match(wordPages[0].textContent,/Primera página/);
+assert.match(wordPages[1].textContent,/Bienvenido/);
+const formatted=Array.from(wordPages[0].querySelectorAll('span')).find(span=>span.textContent==='Primera página');
+assert.equal(formatted.style.fontWeight,'bold');
+assert.equal(formatted.style.fontStyle,'italic');
+assert.equal(formatted.style.fontSize,'18pt');
+assert.equal(formatted.style.color,'rgb(165, 44, 41)');
+assert.equal(docxDoc.querySelectorAll('[contenteditable]').length,0);
+assert.equal(w.document.querySelector('#readerStatus').textContent,'DOCX · 2 páginas');
+
+// The DOM test supplies layout metrics for a Word file with no stored page breaks.
+const synthetic=w.document.createElement('div');
+synthetic.innerHTML=`<section class="hoja-docx" style="min-height:100px">
+ <header>Encabezado</header><article><p>Inicio</p><p><b>Uno dos tres cuatro cinco seis siete ocho nueve diez once doce trece catorce quince</b></p>
+ <table><tbody>${['A','B','C','D','E'].map(text=>`<tr><td>${text}</td></tr>`).join('')}</tbody></table></article>
+</section>`;
+w.document.body.append(synthetic);
+const originalBounds=w.HTMLElement.prototype.getBoundingClientRect;
+w.HTMLElement.prototype.getBoundingClientRect=function(){
+ if(!this.matches('section.hoja-docx')) return originalBounds.call(this);
+ const paragraphs=Array.from(this.querySelectorAll('article > p'));
+ const height=10+this.querySelectorAll('tr').length*35+
+  paragraphs.reduce((sum,p)=>sum+28*Math.ceil(p.textContent.length/21),0);
+ return {height:Math.max(100,height)};
+};
+const originalText=synthetic.querySelector('article').textContent;
+paginateDocxPage(synthetic.firstElementChild);
+const splitText=Array.from(synthetic.querySelectorAll('article'),article=>article.textContent).join('');
+assert.equal(splitText,originalText);
+assert.ok(synthetic.children.length>=4);
+assert.ok(Array.from(synthetic.children,page=>page.getBoundingClientRect().height).every(height=>height<=101));
+assert.equal(Array.from(synthetic.querySelectorAll('tr'),row=>row.textContent).join(''),'ABCDE');
+assert.ok(synthetic.querySelectorAll('article b').length>1);
+assert.equal(synthetic.querySelectorAll('header').length,synthetic.children.length);
+w.HTMLElement.prototype.getBoundingClientRect=originalBounds;
+synthetic.remove();
+console.log('PASS DOCX saved page breaks and visual styles, with automatic splitting of overflowing paragraphs and tables.');
 assert.equal(w.document.querySelector('#app').hidden,true);assert.equal(w.document.querySelectorAll('#reader .reader-heading').length,1);assert.equal(w.document.querySelectorAll('symbol,svg use,.sprite').length,0);
 w.document.querySelector('#readerTheme').click();
 assert.equal(w.document.querySelector('#themeDialog').open,true);
@@ -81,7 +129,7 @@ await w.qa.importFiles([file('no.txt',new Uint8Array(10))]);assert.equal(w.qa.ge
 const incomingBytes=fs.readFileSync('dist/samples/ejemplo.docx');
 w.fetch=async url=>{assert.match(String(url),/^https:\/\/hoja.example\/incoming\//);return new Response(incomingBytes)};
 await w.hojaOpenAndroidDocuments([{url:'https://hoja.example/incoming/test',name:'Desde Android.docx',type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',modified:7}]);
-assert.equal(w.document.querySelector('#readerName').textContent,'Desde Android.docx');assert.match(w.document.querySelector('#wordContent').textContent,/Bienvenido/);w.qa.closeReader();
+assert.equal(w.document.querySelector('#readerName').textContent,'Desde Android.docx');assert.match(w.document.querySelector('#docxPages iframe').contentDocument.body.textContent,/Bienvenido/);w.qa.closeReader();
 const countBeforeRepeat=w.qa.getRecords().length;
 await w.hojaOpenAndroidDocuments([{url:'https://hoja.example/incoming/again',name:'Desde Android.docx',type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',modified:8}]);assert.equal(w.qa.getRecords().length,countBeforeRepeat);w.qa.closeReader();
 await w.qa.importFiles([file('Continuo.pdf',fs.readFileSync('dist/samples/ejemplo.pdf'))]);

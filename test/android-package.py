@@ -18,7 +18,7 @@ def tool(name, *args):
 
 with zipfile.ZipFile(apk) as archive:
     assert archive.testzip() is None
-    for file in ['app.js', 'pdf-reader.js', 'reading-mode.js', 'theme.js', 'icons.js', 'vendor/pdf.mjs', 'vendor/pdf.worker.mjs', 'vendor/mammoth.js', 'vendor/legacy.js']:
+    for file in ['app.js', 'pdf-reader.js', 'docx-reader.js', 'reading-mode.js', 'theme.js', 'icons.js', 'vendor/pdf.mjs', 'vendor/pdf.worker.mjs', 'vendor/docx-preview.js', 'vendor/jszip.js', 'vendor/legacy.js']:
         assert archive.read('assets/web/' + file) == (root / 'dist' / file).read_bytes(), file
     html = archive.read('assets/web/index.html')
     assert b'id="pdfPages"' in html

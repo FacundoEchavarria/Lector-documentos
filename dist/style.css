@@ -383,6 +383,9 @@ button:disabled { background: var(--soft); color: var(--muted); cursor: default;
 .textLayer { position: absolute; inset: 0; z-index: 2; overflow: hidden; line-height: 1; text-align: initial; text-size-adjust: none; forced-color-adjust: none; transform-origin: 0 0; }
 .textLayer :is(span, br) { position: absolute; color: transparent; white-space: pre; cursor: text; transform-origin: 0 0; }
 .textLayer ::selection { background: #3679c066; }
+.docx-document { position: relative; margin: 0 auto; overflow: hidden; }
+.docx-document.docx-loading { visibility: hidden; }
+.docx-document iframe { position: absolute; inset: 0 auto auto 0; border: 0; transform-origin: top left; }
 .word-content {
   max-width: 780px;
   min-height: 70vh;

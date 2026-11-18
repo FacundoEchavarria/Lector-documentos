@@ -1,6 +1,6 @@
 # Hoja para Android
 
-Aplicación Android de solo lectura que incluye el visor completo en el APK. Funciona sin conexión, sin cuentas y sin cargar archivos a servidores. PDF, DOCX y DOC se procesan en Android System WebView. Los archivos DOC antiguos se muestran como texto y los DOCX se adaptan a la lectura.
+Aplicación Android de solo lectura que incluye el visor completo en el APK. Funciona sin conexión, sin cuentas y sin cargar archivos a servidores. PDF, DOCX y DOC se procesan en Android System WebView. Los archivos DOC antiguos se muestran como texto y los DOCX se muestran en páginas separadas con el formato de Word.
 
 - Android 8.0 o posterior y Android System WebView actualizado.
 - Selección de documentos mediante el selector de Android, sin permisos generales de almacenamiento.
@@ -21,7 +21,7 @@ Ejecuta desde la raíz:
 python3 android/build.py
 ```
 
-El archivo firmado queda en `android/build/Hoja-1.3.2.apk`. El script permite `HOJA_ANDROID_BUILD_TOOLS` y `HOJA_ANDROID_JAR` para SDK con otra distribución de carpetas. `HOJA_ECJ_JAR` permite usar el compilador Eclipse si solo está instalado Java Runtime.
+El archivo firmado queda en `android/build/Hoja-1.4.0.apk`. El script permite `HOJA_ANDROID_BUILD_TOOLS` y `HOJA_ANDROID_JAR` para SDK con otra distribución de carpetas. `HOJA_ECJ_JAR` permite usar el compilador Eclipse si solo está instalado Java Runtime.
 
 La app usa el código de `dist/`, empaquetado bajo un origen HTTPS local interceptado por WebView. No depende del sitio publicado ni de una conexión a ChatGPT.
 
@@ -37,4 +37,4 @@ Se firma con la misma clave que 1.0.0 y mantiene el paquete `site.hoja.reader`; 
 - Pantalla completa de lectura con control nativo de las barras de Android, sin cambiar el WebView por una superficie de vídeo. Oculta cabecera y pie; «Salir» o Atrás recuperan los controles sin cerrar el documento.
 - Iconos SVG locales sin sprite oculto ni modificación de referencias durante la carga.
 
-Después de compilar, ejecuta `node test/apk-style.mjs android/build/Hoja-1.3.2.apk` y `HOJA_ANDROID_BUILD_TOOLS=/ruta/build-tools/35.0.0 python test/android-package.py android/build/Hoja-1.3.2.apk releases/Hoja-1.3.1.apk`.
+Después de compilar, ejecuta `node test/apk-style.mjs android/build/Hoja-1.4.0.apk` y `HOJA_ANDROID_BUILD_TOOLS=/ruta/build-tools/35.0.0 python test/android-package.py android/build/Hoja-1.4.0.apk releases/Hoja-1.3.2.apk`.
