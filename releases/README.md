@@ -1,6 +1,6 @@
 # Descargar Hoja para Android
 
-[Descargar Hoja 1.4.0](https://github.com/FacundoEchavarria/Lector-documentos/raw/refs/heads/main/releases/Hoja-1.4.0.apk)
+[Descargar Hoja 1.4.1](https://github.com/FacundoEchavarria/Lector-documentos/raw/refs/heads/main/releases/Hoja-1.4.1.apk)
 
 Android 8.0 o posterior y Android System WebView actualizado. Abre el APK descargado para instalar; Android puede pedir autorización para instalar aplicaciones desde el navegador o el gestor de archivos.
 
@@ -8,7 +8,7 @@ El visor funciona sin conexión. Incluye PDF y Word de solo lectura; los DOC ant
 
 Se verificaron la compilación, integridad y firma v2/v3 del paquete. No se ha probado en un teléfono o emulador Android en este entorno.
 
-El archivo `Hoja-1.4.0.apk.sha256` contiene su suma de verificación. Las fuentes y las instrucciones para compilar están en `android/`.
+El archivo `Hoja-1.4.1.apk.sha256` contiene su suma de verificación. Las fuentes y las instrucciones para compilar están en `android/`.
 
 ## Cambios en 1.1.0
 
@@ -52,3 +52,7 @@ El archivo `Hoja-1.4.0.apk.sha256` contiene su suma de verificación. Las fuente
 ## Cambios en 1.4.0
 
 - Los archivos DOCX se abren en páginas separadas y conservan sus estilos, imágenes y tablas.
+
+## Cambios en 1.4.1
+
+- Zoom con dos dedos sobre las hojas del DOCX en la vista normal y en pantalla completa.

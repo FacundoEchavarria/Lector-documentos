@@ -13,7 +13,7 @@ import {createCanvas,Path2D,DOMMatrix,ImageData} from '@napi-rs/canvas';
 globalThis.Path2D=Path2D;globalThis.DOMMatrix=DOMMatrix;globalThis.ImageData=ImageData;
 import * as realPdfjs from '../dist/vendor/pdf.mjs';
 const dom=new JSDOM(fs.readFileSync('dist/index.html','utf8'),{url:'https://hoja.example/',runScripts:'outside-only',pretendToBeVisual:true});
-const w=dom.window;Object.defineProperty(w.crypto,'subtle',{value:webcrypto.subtle});w.indexedDB=indexedDB;w.structuredClone=structuredClone;w.scrollTo=()=>{};w.HTMLElement.prototype.scrollTo=()=>{};w.HTMLDialogElement.prototype.showModal=function(){this.open=true};w.HTMLDialogElement.prototype.close=function(){this.open=false};w.TextDecoder=TextDecoder;w.TextEncoder=TextEncoder;w.File=File;w.pdfjs={GlobalWorkerOptions:{},getDocument:({data})=>realPdfjs.getDocument({data,standardFontDataUrl:process.cwd()+'/dist/vendor/standard_fonts/'}),TextLayer:class {constructor({container,textContentSource}){this.container=container;this.text=textContentSource;}async render(){this.container.textContent=this.text.items.map(x=>x.str).join(' ')}cancel(){}}};w.ContinuousPdfReader=ContinuousPdfReader;w.createReadingMode=createReadingMode;w.icon=icon;const nativeFullscreenCalls=[];w.HojaAndroid={setReadingFullscreen:enabled=>nativeFullscreenCalls.push(enabled)};
+const w=dom.window;Object.defineProperty(w.crypto,'subtle',{value:webcrypto.subtle});w.indexedDB=indexedDB;w.structuredClone=structuredClone;w.scrollTo=()=>{};w.HTMLElement.prototype.scrollTo=function(x,y){this.scrollLeft=x;this.scrollTop=y};w.HTMLDialogElement.prototype.showModal=function(){this.open=true};w.HTMLDialogElement.prototype.close=function(){this.open=false};w.TextDecoder=TextDecoder;w.TextEncoder=TextEncoder;w.File=File;w.pdfjs={GlobalWorkerOptions:{},getDocument:({data})=>realPdfjs.getDocument({data,standardFontDataUrl:process.cwd()+'/dist/vendor/standard_fonts/'}),TextLayer:class {constructor({container,textContentSource}){this.container=container;this.text=textContentSource;}async render(){this.container.textContent=this.text.items.map(x=>x.str).join(' ')}cancel(){}}};w.ContinuousPdfReader=ContinuousPdfReader;w.createReadingMode=createReadingMode;w.icon=icon;const nativeFullscreenCalls=[];w.HojaAndroid={setReadingFullscreen:enabled=>nativeFullscreenCalls.push(enabled)};
 const themeCalls=[];
 let systemDark=false;
 w.matchMedia=()=>({matches:false,addEventListener(){}});
@@ -52,7 +52,7 @@ w.DocxReader=DocxReader;
 let code=fs.readFileSync('dist/app.js','utf8').replace(/^import .*\n/gm,'').replace(/import.meta.url/g,"'https://hoja.example/app.js'");
 code=code.replace("console.error('Document read failed:',error.name)","console.error('Expected document error:',error.name)");
 const context=dom.getInternalVMContext();
-await new vm.Script(`(async()=>{${code}\nwindow.qa={importFiles,openDocument,closeReader,draw,dbOp,getRecords:()=>records};})()`).runInContext(context);
+await new vm.Script(`(async()=>{${code}\nwindow.qa={importFiles,openDocument,closeReader,draw,dbOp,getRecords:()=>records,getDocxReader:()=>docxReader};})()`).runInContext(context);
 const file=(name,bytes)=>new File([bytes],name,{lastModified:100});
 const originalDocx=await JSZip.loadAsync(fs.readFileSync('dist/samples/ejemplo.docx'));
 const wordXml=await originalDocx.file('word/document.xml').async('string');
@@ -76,6 +76,46 @@ assert.equal(formatted.style.fontSize,'18pt');
 assert.equal(formatted.style.color,'rgb(165, 44, 41)');
 assert.equal(docxDoc.querySelectorAll('[contenteditable]').length,0);
 assert.equal(w.document.querySelector('#readerStatus').textContent,'DOCX · 2 páginas');
+
+// jsdom has no layout. Give the iframe a measured height and derive its screen
+// coordinates from the scrolling viewport and the actual rendered frame scale.
+const wordViewer=w.qa.getDocxReader();
+wordViewer.height=2132;
+docxFrame.getBoundingClientRect=()=>({
+ left:Math.max(0,(viewport.clientWidth-wordViewer.width*wordViewer.scale)/2)-viewport.scrollLeft,
+ top:-viewport.scrollTop
+});
+wordViewer.resize();
+assert.equal(viewport.classList.contains('docx-zoomable'),true);
+assert.match(docxDoc.head.textContent,/touch-action:\s*pan-x pan-y/);
+const wordTouch=(id,x,y)=>{
+ const rect=docxFrame.getBoundingClientRect();
+ return {identifier:id,clientX:(x-rect.left)/wordViewer.scale,clientY:(y-rect.top)/wordViewer.scale,target:formatted};
+};
+const wordGesture=(type,positions)=>dispatchTouch(type,positions.map(([x,y],i)=>wordTouch(i+1,x,y)),formatted);
+assert.equal(wordGesture('touchmove',[[100,240]]).defaultPrevented,false);
+assert.equal(wordGesture('touchstart',[[100,240],[200,240]]).defaultPrevented,true);
+assert.equal(wordGesture('touchmove',[[50,240],[250,240]]).defaultPrevented,true);
+await new Promise(r=>w.requestAnimationFrame(r));
+assert.equal(w.document.querySelector('#zoomLabel').textContent,'200%');
+assert.ok(Math.abs(viewport.scrollLeft-150)<.01);
+// A second move in the same gesture crosses the scaled iframe coordinates.
+wordGesture('touchmove',[[75,240],[225,240]]);
+wordGesture('touchend',[[75,240]]);
+assert.equal(w.document.querySelector('#zoomLabel').textContent,'150%');
+assert.ok(Math.abs(viewport.scrollLeft-75)<.01);
+w.document.querySelector('#readerFullscreen').click();
+assert.equal(w.document.querySelector('#reader').classList.contains('reading-fullscreen'),true);
+await new Promise(r=>w.requestAnimationFrame(r));
+assert.equal(wordGesture('touchstart',[[100,240],[200,240]]).defaultPrevented,true);
+wordGesture('touchmove',[[120,240],[180,240]]);
+wordGesture('touchend',[]);
+assert.equal(w.document.querySelector('#zoomLabel').textContent,'90%');
+assert.equal(w.document.querySelector('#reader').style.transform,'');
+assert.equal(w.document.documentElement.style.transform,'');
+w.hojaNativeFullscreenChanged(false);
+await new Promise(r=>w.requestAnimationFrame(r));
+console.log('PASS DOCX pinch zoom stays inside the document in normal and fullscreen mode.');
 
 // The DOM test supplies layout metrics for a Word file with no stored page breaks.
 const synthetic=w.document.createElement('div');
@@ -139,10 +179,10 @@ await new Promise(r=>setTimeout(r,120));assert.ok(w.document.querySelectorAll('#
 const pages=w.document.querySelector('#pdfPages');
 const firstPage=pages.querySelector('.pdf-page');
 const finger=(identifier,clientX,target)=>({identifier,clientX,clientY:240,target});
-function dispatchTouch(type,touches){
+function dispatchTouch(type,touches,target=viewport){
  const event=new w.Event(type,{bubbles:true,cancelable:true});
  Object.defineProperty(event,'touches',{value:touches});
- viewport.dispatchEvent(event);
+ target.dispatchEvent(event);
  return event;
 }
 async function pinch(start,end,percentage){

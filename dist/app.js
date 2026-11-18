@@ -59,6 +59,11 @@ async function importFiles(files){
 async function openDocument(record){
  savePosition();
  const token=++openToken;
+ const onZoomChange=value=>{
+  if(token!==openToken)return;
+  zoom=value;
+  updateZoomControls();
+ };
  pdfReader?.destroy();pdfReader=null;
  docxReader?.destroy();docxReader=null;
  if(pdf){pdf.destroy();pdf=null}
@@ -79,18 +84,14 @@ async function openDocument(record){
    record.page=position.page;record.pageOffset=position.offset;
    clearTimeout(positionTimer);positionTimer=setTimeout(()=>{if(!record.sample)dbOp('put',record).catch(()=>{})},250);
   },
-  onZoomChange(value){
-   if(token!==openToken)return;
-   zoom=value;
-   updateZoomControls();
-  },
+  onZoomChange,
   onError(){if(token===openToken)toast('No se pudo mostrar una de las páginas del PDF.');}
  });
  pdfReader=viewer;$('#readerLoading').hidden=true;$('#pdfPages').hidden=false;
  await viewer.open(loaded,{page:record.page||1,offset:record.pageOffset||0});
  }else if(record.ext==='docx'){
  const container=$('#docxPages');
- const viewer=new DocxReader({container,viewport:$('#readerViewport')});
+ const viewer=new DocxReader({container,viewport:$('#readerViewport'),onZoomChange});
  docxReader=viewer;
  container.classList.add('docx-loading');container.hidden=false;
  const count=await viewer.open(bytes);

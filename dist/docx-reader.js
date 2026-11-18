@@ -1,3 +1,5 @@
+import { bindPinchZoom, clampPinchZoom } from './pinch-zoom.js';
+
 const pageSelector = 'section.hoja-docx';
 // These faces match the spacing of common Word fonts when they are absent on Android.
 const substituteFonts = [['Calibri', 'carlito'], ['Cambria', 'caladea']].flatMap(([family, file]) =>
@@ -16,7 +18,13 @@ const frameHtml = `<!doctype html><html lang="es"><head><meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src 'self' data:; base-uri 'none'; form-action 'none'">
 <style>
 ${substituteFonts}
-html, body { margin: 0; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+html, body {
+  margin: 0;
+  overflow: hidden;
+  touch-action: pan-x pan-y;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
 body > .hoja-docx-wrapper {
   background: transparent;
   padding: 1px;
@@ -35,11 +43,14 @@ body > .hoja-docx-wrapper > section.hoja-docx {
 </style></head><body></body></html>`;
 
 export class DocxReader {
-  constructor({ container, viewport }) {
+  constructor({ container, viewport, onZoomChange = () => {} }) {
     this.container = container;
     this.viewport = viewport;
+    this.onZoomChange = onZoomChange;
+    this.window = container.ownerDocument.defaultView;
     this.zoom = 1;
     this.scale = 1;
+    viewport.classList.add('docx-zoomable');
   }
 
   async open(bytes) {
@@ -93,6 +104,22 @@ export class DocxReader {
     this.height = Math.ceil(wrapper.getBoundingClientRect().height);
     this.frame.style.height = `${this.height}px`;
     this.resize();
+    const gesture = {
+      onStart: center => this.startPinch(center),
+      onMove: (factor, center) => this.movePinch(factor, center),
+      onEnd: () => this.finishPinch()
+    };
+    this.unbindPinch = [
+      bindPinchZoom(this.viewport, gesture),
+      bindPinchZoom(doc.documentElement, {
+        ...gesture,
+        // The frame reports touches in its own unscaled coordinates.
+        project: touch => {
+          const { left, top } = this.frame.getBoundingClientRect();
+          return { x: left + touch.clientX * this.scale, y: top + touch.clientY * this.scale };
+        }
+      })
+    ];
     doc.addEventListener('click', event => {
       const href = event.target.closest?.('a[href]')?.getAttribute('href');
       if (!href) return;
@@ -110,14 +137,56 @@ export class DocxReader {
     return wrapper.children.length;
   }
 
-  setZoom(value) {
-    this.zoom = value;
-    this.resize();
+  startPinch(center) {
+    if (!this.height || this.pinch) return false;
+    const rect = this.frame.getBoundingClientRect();
+    this.pinch = {
+      x: (center.x - rect.left) / this.scale,
+      y: (center.y - rect.top) / this.scale,
+      center,
+      startZoom: this.zoom,
+      zoom: this.zoom,
+      frame: null
+    };
+    return true;
   }
 
-  resize() {
+  movePinch(factor, center) {
+    const pinch = this.pinch;
+    if (!pinch) return;
+    pinch.zoom = clampPinchZoom(pinch.startZoom * factor);
+    pinch.center = center;
+    if (pinch.frame !== null) return;
+    pinch.frame = this.window.requestAnimationFrame(() => {
+      pinch.frame = null;
+      this.setZoom(pinch.zoom, pinch);
+    });
+  }
+
+  finishPinch() {
+    const pinch = this.pinch;
+    if (!pinch) return;
+    this.clearPinch();
+    if (pinch.frame !== null) this.setZoom(pinch.zoom, pinch);
+  }
+
+  clearPinch() {
+    if (this.pinch?.frame != null) this.window.cancelAnimationFrame(this.pinch.frame);
+    this.pinch = null;
+  }
+
+  setZoom(value, focus) {
+    if (this.destroyed) return;
+    if (!focus) this.clearPinch();
+    const changed = this.zoom !== value;
+    this.zoom = value;
+    this.resize(focus);
+    if (changed) this.onZoomChange(value);
+  }
+
+  resize(focus) {
     if (this.destroyed || !this.height) return;
-    const style = this.container.ownerDocument.defaultView.getComputedStyle(this.viewport);
+    const style = this.window.getComputedStyle(this.viewport);
     const padding = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0);
     const availableWidth = Math.max(1, this.viewport.clientWidth - padding);
     const scale = Math.min(1, availableWidth / this.width) * this.zoom;
@@ -126,13 +195,22 @@ export class DocxReader {
     this.frame.style.transform = `scale(${scale})`;
     this.container.style.width = `${Math.ceil(this.width * scale)}px`;
     this.container.style.height = `${Math.ceil(this.height * scale)}px`;
-    this.viewport.scrollTop = top;
-    this.viewport.scrollLeft = left;
+    if (focus) {
+      const rect = this.frame.getBoundingClientRect();
+      this.viewport.scrollLeft += rect.left + focus.x * scale - focus.center.x;
+      this.viewport.scrollTop += rect.top + focus.y * scale - focus.center.y;
+    } else {
+      this.viewport.scrollTop = top;
+      this.viewport.scrollLeft = left;
+    }
     this.scale = scale;
   }
 
   destroy() {
     this.destroyed = true;
+    this.clearPinch();
+    this.unbindPinch?.forEach(unbind => unbind());
+    this.viewport.classList.remove('docx-zoomable');
     this.frame?.remove();
     this.container.removeAttribute('style');
   }
