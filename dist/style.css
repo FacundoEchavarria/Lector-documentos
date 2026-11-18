@@ -103,13 +103,11 @@ h1, h2, h3 { line-height: 1.25; }
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
   text-decoration: none;
-  font: 650 29px/1 var(--editorial);
-  letter-spacing: -.035em;
 }
-.brand span { padding-top: .17em; }
-.brand img { border-radius: 6px; }
+.brand img { display: block; }
+.brand .brand-dark, .dark .brand .brand-light { display: none; }
+.dark .brand .brand-dark { display: block; }
 .topbar-actions { display: flex; align-items: center; gap: 2px; }
 .icon-button, .fit-button, .secondary {
   display: inline-flex;

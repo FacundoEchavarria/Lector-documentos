@@ -21,6 +21,9 @@ with zipfile.ZipFile(apk) as archive:
     for file in ['app.js', 'pdf-reader.js', 'docx-reader.js', 'markdown-reader.js', 'pinch-zoom.js', 'reading-mode.js', 'theme.js', 'icons.js', 'vendor/pdf.mjs', 'vendor/pdf.worker.mjs', 'vendor/docx-preview.js', 'vendor/jszip.js', 'vendor/marked.mjs', 'vendor/legacy.js', 'samples/ejemplo.md']:
         assert archive.read('assets/web/' + file) == (root / 'dist' / file).read_bytes(), file
     html = archive.read('assets/web/index.html')
+    for logo in ('brand.svg', 'brand-dark.svg'):
+        assert archive.read('assets/web/' + logo) == (root / 'dist' / logo).read_bytes()
+        assert logo.encode() in html
     assert b'id="pdfPages"' in html
     assert b'manifest.webmanifest' not in html
     assert 'Hoja está instalada en tu teléfono y funciona sin conexión'.encode() in html
