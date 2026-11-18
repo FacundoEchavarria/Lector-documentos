@@ -6,6 +6,7 @@ import {webcrypto} from 'node:crypto';
 import assert from 'node:assert/strict';
 import {ContinuousPdfReader} from '../dist/pdf-reader.js';
 import {DocxReader, paginateDocxPage} from '../dist/docx-reader.js';
+import {MarkdownReader} from '../dist/markdown-reader.js';
 import JSZip from 'jszip';
 import {createReadingMode} from '../dist/reading-mode.js';
 import {icon} from '../dist/icons.js';
@@ -49,6 +50,7 @@ w.HTMLCanvasElement.prototype.getContext=function(){if(!this.backing)this.backin
 w.setImmediate=setImmediate;w.clearImmediate=clearImmediate;
 for(const file of ['jszip','docx-preview','purify','legacy'])w.eval(fs.readFileSync(`dist/vendor/${file}.js`,'utf8'));
 w.DocxReader=DocxReader;
+w.MarkdownReader=MarkdownReader;
 let code=fs.readFileSync('dist/app.js','utf8').replace(/^import .*\n/gm,'').replace(/import.meta.url/g,"'https://hoja.example/app.js'");
 code=code.replace("console.error('Document read failed:',error.name)","console.error('Expected document error:',error.name)");
 const context=dom.getInternalVMContext();
@@ -210,6 +212,71 @@ await new Promise(r=>w.requestAnimationFrame(r));
 w.qa.closeReader();
 assert.equal(viewport.classList.contains('pdf-zoomable'),false);
 console.log('PASS PDF pinch zoom in normal and fullscreen reading, with midpoint anchoring without cancelling single touch events.');
+
+const markdown=`# Prueba Markdown
+
+[Ir a detalles](#detalles)
+
+## Detalles
+
+Texto **en negrita** y *énfasis*.
+
+- [x] Lista de tareas
+
+| Tipo | Estado |
+| --- | --- |
+| Archivo | Visible |
+
+\`\`\`js
+const mensaje = "<b>código literal</b>";
+\`\`\`
+
+<script>alert(1)</script>
+
+[Enlace inactivo](javascript:alert(1))
+
+![Imagen remota](https://example.org/imagen.png)
+
+![Imagen incrustada](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+r3ZkAAAAASUVORK5CYII=)
+`;
+await w.qa.importFiles([file('Notas.md',markdown)]);
+const note=w.document.querySelector('.markdown-content');
+assert.equal(note.querySelector('h1').textContent,'Prueba Markdown');
+assert.equal(note.querySelector('strong').textContent,'en negrita');
+assert.equal(note.querySelector('pre code').textContent.trim(),'const mensaje = "<b>código literal</b>";');
+assert.equal(note.querySelector('tbody td').textContent,'Archivo');
+assert.equal(note.querySelector('input[type="checkbox"]').disabled,true);
+assert.equal(note.querySelector('[href="#md-heading-detalles"]').textContent,'Ir a detalles');
+assert.equal(note.querySelector('script, a[href^="javascript:"]'),null);
+assert.equal(note.querySelectorAll('img').length,1);
+assert.match(note.querySelector('img').getAttribute('src'),/^data:image\/png;base64,/);
+assert.match(note.textContent,/Imagen remota/);
+assert.equal(w.document.querySelector('#readerStatus').textContent,'Markdown · Solo lectura');
+w.document.querySelector('#readerFullscreen').click();
+assert.equal(w.document.querySelector('#reader').classList.contains('reading-fullscreen'),true);
+const mdFinger=finger(1,60,note);
+assert.equal(dispatchTouch('touchstart',[mdFinger,finger(2,160,note)],note).defaultPrevented,true);
+assert.equal(dispatchTouch('touchmove',[mdFinger,finger(2,210,note)],note).defaultPrevented,true);
+dispatchTouch('touchend',[],note);
+assert.equal(note.style.fontSize,'24px');
+assert.equal(w.document.querySelector('#zoomLabel').textContent,'150%');
+w.qa.closeReader();
+assert.equal(viewport.classList.contains('markdown-zoomable'),false);
+w.document.querySelector('[data-filter="md"]').click();
+assert.equal(w.document.querySelectorAll('.document-card').length,1);
+assert.equal(w.document.querySelector('#documentList .format-label.md').textContent,'MD');
+w.document.querySelector('[data-filter="word"]').click();
+assert.equal(w.document.querySelector('#documentList .format-label.md'),null);
+w.document.querySelector('[data-filter="all"]').click();
+w.fetch=async url=>{
+ assert.match(String(url),/^https:\/\/hoja\.example\/incoming\//);
+ return new Response(markdown);
+};
+await w.hojaOpenAndroidDocuments([{url:'https://hoja.example/incoming/md',name:'Desde Android.MD',type:'text/plain'}]);
+assert.equal(w.document.querySelector('#readerName').textContent,'Desde Android.MD');
+assert.equal(w.document.querySelector('.markdown-content h1').textContent,'Prueba Markdown');
+w.qa.closeReader();
+console.log('PASS Markdown import, formatting, document-only zoom, filters and Android file delivery.');
 console.log('PASS PDF continuous integration and Android document delivery.');
 console.log('PASS DOM integration: DOCX import and read-only view, real legacy DOC extraction, favorites, filtering, search, IndexedDB persistence, corrupt and unsupported file handling');
 dom.window.close();

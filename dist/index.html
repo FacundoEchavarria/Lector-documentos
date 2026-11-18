@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#fcfaf6">
-  <meta name="description" content="Lee PDF y documentos Word con Hoja.">
+  <meta name="description" content="Lee PDF, Word y Markdown con Hoja.">
   <link rel="icon" href="icon.svg?v=4" type="image/svg+xml">
   <link rel="manifest" href="manifest.webmanifest">
   <script src="theme.js"></script>
@@ -51,6 +51,7 @@
             <button class="selected" data-filter="all" aria-pressed="true">Todos</button>
             <button data-filter="pdf" aria-pressed="false">PDF</button>
             <button data-filter="word" aria-pressed="false">Word</button>
+            <button data-filter="md" aria-pressed="false">Markdown</button>
           </div>
           <div class="sort-control">
             <select id="sort" aria-label="Ordenar documentos">
@@ -63,7 +64,7 @@
         <div id="documentList" class="document-list"></div>
         <div id="emptyState" class="empty-state" hidden>
           <h3>Todavía no hay documentos</h3>
-          <p>Abre un PDF o Word para guardarlo en la biblioteca.</p>
+          <p>Abre un PDF, Word o Markdown para guardarlo en la biblioteca.</p>
         </div>
       </section>
       <section id="examplesSection" class="examples-section" aria-labelledby="examplesTitle">
@@ -79,11 +80,16 @@
               <span class="example-info"><strong>Documento de ejemplo</strong><small>Documento Word</small></span>
               <span class="example-arrow"><svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg></span>
             </button>
+            <button class="example-card" data-example="md">
+              <span class="format-label md">MD</span>
+              <span class="example-info"><strong>Notas de lectura</strong><small>Documento Markdown</small></span>
+              <span class="example-arrow"><svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg></span>
+            </button>
         </div>
       </section>
     </main>
   </div>
-  <input type="file" id="fileInput" hidden multiple accept=".pdf,.docx,.doc,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+  <input type="file" id="fileInput" hidden multiple accept=".pdf,.docx,.doc,.md,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/markdown">
   <section id="reader" class="reader" hidden aria-label="Visor de documentos">
   <header class="reader-header">
     <div class="reader-heading">
@@ -126,8 +132,8 @@
     <button class="dialog-close icon-button" aria-label="Cerrar ayuda"><svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 6 12 12M6 18 18 6"/></svg></button>
     <h2 id="helpTitle">Cómo funciona</h2>
     <ol>
-      <li>Pulsa «Abrir archivo» y elige un PDF, DOCX o DOC de hasta 50 MB.</li>
-      <li>Desliza para leer. En PDF y DOCX, junta o separa dos dedos para ajustar el tamaño, también en pantalla completa.</li>
+      <li>Pulsa «Abrir archivo» y elige un PDF, DOCX, DOC o Markdown (.md) de hasta 50 MB.</li>
+      <li>Desliza para leer. En PDF, DOCX y Markdown, junta o separa dos dedos para ajustar el tamaño, también en pantalla completa.</li>
       <li>Pulsa la estrella de un documento para encontrarlo en Favoritos.</li>
     </ol>
     <p class="help-note">Los documentos se abren en modo de solo lectura. Los archivos DOC antiguos se muestran como texto.</p>

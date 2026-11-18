@@ -1,8 +1,8 @@
 # Hoja
 
-Responsive Spanish read-only PDF and Word reader. Static application; documents are processed locally and persisted in IndexedDB. No document uploads or document editing endpoints.
+Responsive Spanish reader for PDF, Word and Markdown. Static application; documents are processed locally and persisted in IndexedDB. No document uploads or document editing endpoints.
 
-PDF.js renders every PDF page in a continuous vertical column with selectable text, lazy rendering, bounded canvas memory, and retained scroll position when zooming. DOCX Preview renders Word pages in an isolated frame, retaining page dimensions, headers, footers, paragraph styles and tables. Additional pages are created when rendered content exceeds the page height. Legacy DOC uses a browserified OLE text extractor; its directory name normalization fixes the browser Buffer UTF-16 decoder's odd-byte behavior. Fonts, complex layouts and automatically calculated breaks can vary from Word.
+PDF.js renders every PDF page in a continuous vertical column with selectable text, lazy rendering, bounded canvas memory, and retained scroll position when zooming. DOCX Preview renders Word pages in an isolated frame, retaining page dimensions, headers, footers, paragraph styles and tables. Additional pages are created when rendered content exceeds the page height. Legacy DOC uses a browserified OLE text extractor; its directory name normalization fixes the browser Buffer UTF-16 decoder's odd-byte behavior. Fonts, complex layouts and automatically calculated breaks can vary from Word. Marked and DOMPurify render Markdown locally, including tables, code blocks and task lists. Embedded images display inside the document and linked images appear as alt text.
 
 `npm install` installs development dependencies. `npm run check` validates the app syntax and uses jsdom with fake-indexeddb to exercise document opening, search, favorites, storage, Android document delivery, and malformed input handling. Additional tests rasterize real PDF pages, exercise long-document lazy rendering and zoom, and verify control contrast in both themes. `npm run bundle:doc` rebuilds the legacy parser.
 

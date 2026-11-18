@@ -42,6 +42,7 @@ import java.util.Locale;
 
 /** Local-only reader. The system picker grants access to selected documents. */
 public final class MainActivity extends Activity {
+    private static final String MARKDOWN_MIME = "text/markdown";
     private static final String HOST = "appassets.androidplatform.net";
     private static final String DARK_APPEARANCE = "dark_appearance";
     private static final int DARK_SURFACE = Color.rgb(41, 38, 34);
@@ -133,7 +134,11 @@ public final class MainActivity extends Activity {
                 Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
                 intent.addCategory(Intent.CATEGORY_OPENABLE);
                 intent.setType("*/*");
-                intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"});
+                intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{
+                    "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    MARKDOWN_MIME, "text/x-markdown", "application/markdown", "application/x-markdown",
+                    "text/plain", "application/octet-stream"
+                });
                 intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
                 intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
                 try { startActivityForResult(intent, PICK_DOCUMENT); }
@@ -191,7 +196,7 @@ public final class MainActivity extends Activity {
                         });
                     } catch (Exception error) {
                         runOnUiThread(new Runnable() {
-                            @Override public void run() { if (!destroyed) message("No se pudo abrir el archivo. Elige un PDF o Word de hasta 50 MB."); }
+                            @Override public void run() { if (!destroyed) message("No se pudo abrir el archivo. Elige un PDF, Word o Markdown de hasta 50 MB."); }
                         });
                     }
                 }
@@ -216,15 +221,22 @@ public final class MainActivity extends Activity {
         if (name == null || name.trim().isEmpty()) name = "Documento";
         name = name.replace('/', '_').replace('\\', '_').trim();
         String lower = name.toLowerCase(Locale.ROOT);
-        if (!lower.endsWith(".pdf") && !lower.endsWith(".doc") && !lower.endsWith(".docx")) {
+        if (!lower.endsWith(".pdf") && !lower.endsWith(".doc") && !lower.endsWith(".docx") && !lower.endsWith(".md")) {
             if ("application/pdf".equals(type) || "application/x-pdf".equals(type)) name += ".pdf";
             else if ("application/msword".equals(type) || "application/vnd.ms-word".equals(type)) name += ".doc";
             else if ("application/vnd.openxmlformats-officedocument.wordprocessingml.document".equals(type)) name += ".docx";
+            else if (isMarkdownType(type) || isMarkdownType(intentType)) name += ".md";
             else throw new IOException("Unsupported document");
         }
         lower = name.toLowerCase(Locale.ROOT);
-        type = lower.endsWith(".pdf") ? "application/pdf" : lower.endsWith(".docx") ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document" : "application/msword";
+        type = mime(lower);
         return new IncomingDocument(uri, name, type);
+    }
+
+    private static boolean isMarkdownType(String type) {
+        String normalized = Intent.normalizeMimeType(type);
+        return MARKDOWN_MIME.equals(normalized) || "text/x-markdown".equals(normalized)
+            || "application/markdown".equals(normalized) || "application/x-markdown".equals(normalized);
     }
 
     private void deliverPending() {
@@ -404,6 +416,8 @@ public final class MainActivity extends Activity {
         if (path.endsWith(".woff2")) return "font/woff2";
         if (path.endsWith(".pdf")) return "application/pdf";
         if (path.endsWith(".docx")) return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        if (path.endsWith(".doc")) return "application/msword";
+        if (path.endsWith(".md")) return MARKDOWN_MIME;
         return "application/octet-stream";
     }
     @Override protected void onDestroy() {
