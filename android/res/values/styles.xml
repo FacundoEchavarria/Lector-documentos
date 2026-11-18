@@ -1,5 +1,5 @@
 <resources>
-    <color name="icon_background">#294e40</color>
+    <color name="icon_background">#124936</color>
     <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:forceDarkAllowed">false</item>
         <item name="android:fontFamily">sans</item>
@@ -8,7 +8,7 @@
         <item name="android:navigationBarColor">#ffffff</item>
         <item name="android:windowLightNavigationBar">true</item>
         <item name="android:windowActionModeOverlay">true</item>
-        <item name="android:colorAccent">#294e40</item>
+        <item name="android:colorAccent">#124936</item>
         <item name="android:windowBackground">#ffffff</item>
     </style>
 </resources>
