@@ -1,6 +1,6 @@
 # Descargar Hoja para Android
 
-[Descargar Hoja 1.5.2](https://github.com/FacundoEchavarria/Lector-documentos/raw/refs/heads/main/releases/Hoja-1.5.2.apk)
+[Descargar Hoja 1.5.3](https://github.com/FacundoEchavarria/Lector-documentos/raw/refs/heads/main/releases/Hoja-1.5.3.apk)
 
 Android 8.0 o posterior y Android System WebView actualizado. Abre el APK descargado para instalar; Android puede pedir autorización para instalar aplicaciones desde el navegador o el gestor de archivos.
 
@@ -8,7 +8,7 @@ El visor funciona sin conexión. Incluye PDF, Word y Markdown de solo lectura. L
 
 Se verificaron la compilación, integridad y firma v2/v3 del paquete. No se ha probado en un teléfono o emulador Android en este entorno.
 
-El archivo `Hoja-1.5.2.apk.sha256` contiene su suma de verificación. Las fuentes y las instrucciones para compilar están en `android/`.
+El archivo `Hoja-1.5.3.apk.sha256` contiene su suma de verificación. Las fuentes y las instrucciones para compilar están en `android/`.
 
 ## Cambios en 1.1.0
 
@@ -73,3 +73,7 @@ El archivo `Hoja-1.5.2.apk.sha256` contiene su suma de verificación. Las fuente
 ## Cambios en 1.5.2
 
 - Nuevo logo de Hoja con una H de papel plegado integrada en el nombre y en el icono de Android.
+
+## Cambios en 1.5.3
+
+- Paleta azul del logo aplicada a la biblioteca, el lector, los menús y las barras de Android en modo claro y oscuro.

@@ -9,26 +9,26 @@
 
 :root {
   color-scheme: only light;
-  --bg: #f5f2ec;
-  --surface: #fcfaf6;
-  --text: #292520;
-  --muted: #625b51;
-  --line: #ddd5c8;
-  --soft: #ece6db;
-  --tint: #f3dfd5;
-  --tint-text: #863c2b;
-  --button-bg: #8b402f;
-  --button-text: #fffaf3;
-  --control-bg: #fcfaf6;
-  --control-text: #3b3229;
-  --focus: #994831;
-  --stage: #e4ded4;
-  --pdf-bg: #f2e5da;
-  --pdf-ink: #844331;
-  --word-bg: #e5e8e2;
-  --word-ink: #44544d;
-  --md-bg: #e8e2ed;
-  --md-ink: #524063;
+  --bg: #f0f2fb;
+  --surface: #f9faff;
+  --text: #20233b;
+  --muted: #4f5774;
+  --line: #d2d9ed;
+  --soft: #e7ebf8;
+  --tint: #e4e9ff;
+  --tint-text: #27368b;
+  --button-bg: #27368b;
+  --button-text: #f9faff;
+  --control-bg: #f9faff;
+  --control-text: #29365e;
+  --focus: #3146aa;
+  --stage: #e3e8f4;
+  --pdf-bg: #ede9fd;
+  --pdf-ink: #473080;
+  --word-bg: #e4ebff;
+  --word-ink: #27368b;
+  --md-bg: #e1eef4;
+  --md-ink: #25516a;
   --star: #79520f;
   --danger-bg: #a62e37;
   --danger-text: #ffffff;
@@ -36,26 +36,26 @@
 }
 :root.dark {
   color-scheme: only dark;
-  --bg: #201e1b;
-  --surface: #292622;
+  --bg: #171b2d;
+  --surface: #20233b;
   --text: #f3eae0;
-  --muted: #c2b6a7;
-  --line: #4b443e;
-  --soft: #38322c;
-  --tint: #483128;
-  --tint-text: #fac5b1;
-  --button-bg: #edb29d;
-  --button-text: #381b13;
-  --control-bg: #292622;
-  --control-text: #f1e5d7;
-  --focus: #edb29d;
-  --stage: #181613;
-  --pdf-bg: #483128;
-  --pdf-ink: #f3ba9e;
-  --word-bg: #303c35;
-  --word-ink: #c7dacd;
-  --md-bg: #3a3146;
-  --md-ink: #decaef;
+  --muted: #b9c3df;
+  --line: #435178;
+  --soft: #2a3452;
+  --tint: #2c3765;
+  --tint-text: #d6dfff;
+  --button-bg: #b6c5ff;
+  --button-text: #1b2664;
+  --control-bg: #20233b;
+  --control-text: #e6ebff;
+  --focus: #b6c5ff;
+  --stage: #121629;
+  --pdf-bg: #38325b;
+  --pdf-ink: #ddcfff;
+  --word-bg: #303e6d;
+  --word-ink: #d0daff;
+  --md-bg: #263d4d;
+  --md-ink: #bde4f6;
   --star: #f1cb78;
   --danger-bg: #ffc0c3;
   --danger-text: #44181d;
@@ -285,7 +285,7 @@ dialog {
   color: var(--text);
   box-shadow: 0 16px 48px #0004;
 }
-dialog::backdrop { background: #20181199; }
+dialog::backdrop { background: #10162e99; }
 dialog h2 { font: 600 28px/1.1 var(--editorial); margin-bottom: 14px; }
 dialog p, dialog ol { color: var(--muted); }
 dialog p + p, dialog li + li { margin-top: 10px; }
@@ -344,11 +344,11 @@ dialog p + p, dialog li + li { margin-top: 10px; }
   z-index: 3;
   flex: none;
   padding: 4px max(10px, env(safe-area-inset-right)) 4px max(10px, env(safe-area-inset-left));
-  background: #fcfaf6;
+  background: #f9faff;
   border-bottom: 1px solid var(--line);
   font-family: system-ui, sans-serif;
 }
-.dark .reader-header { background: #292622; }
+.dark .reader-header { background: #20233b; }
 .reader-heading { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px 44px; align-items: center; gap: 8px; }
 .reader-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
 .rotate { transform: rotate(180deg); }
@@ -381,15 +381,15 @@ button:disabled { background: var(--soft); color: var(--muted); cursor: default;
   margin: 0 auto 24px;
   overflow: hidden;
   background: #ffffff;
-  box-shadow: 0 1px 8px #281c1430;
-  outline: 1px solid #bfb6aa;
+  box-shadow: 0 1px 8px #192b5630;
+  outline: 1px solid #b8c2dc;
 }
 .pdf-page:last-child { margin-bottom: 0; }
 .pdf-page canvas { display: block; position: absolute; top: 0; left: 0; }
-.pdf-placeholder { position: absolute; inset: 0; display: grid; place-items: center; padding: 20px; color: #584f44; text-align: center; }
+.pdf-placeholder { position: absolute; inset: 0; display: grid; place-items: center; padding: 20px; color: #4f5774; text-align: center; }
 .textLayer { position: absolute; inset: 0; z-index: 2; overflow: hidden; line-height: 1; text-align: initial; text-size-adjust: none; forced-color-adjust: none; transform-origin: 0 0; }
 .textLayer :is(span, br) { position: absolute; color: transparent; white-space: pre; cursor: text; transform-origin: 0 0; }
-.textLayer ::selection { background: #3679c066; }
+.textLayer ::selection { background: #6479dd55; }
 .docx-document { position: relative; margin: 0 auto; overflow: hidden; }
 .docx-document.docx-loading { visibility: hidden; }
 .docx-document iframe { position: absolute; inset: 0 auto auto 0; border: 0; transform-origin: top left; }

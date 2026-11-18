@@ -37,7 +37,7 @@ body > .hoja-docx-wrapper > section.hoja-docx {
   width: 612pt;
   min-height: 792pt;
   margin: 0;
-  outline: 1px solid #bfb6aa;
+  outline: 1px solid #b8c2dc;
   box-shadow: none;
 }
 </style></head><body></body></html>`;

@@ -15,7 +15,7 @@
     const systemDark = native?.isSystemDarkTheme ? native.isSystemDarkTheme() : colorScheme.matches;
     const dark = preference === 'dark' || (preference === 'system' && systemDark);
     root.classList.toggle('dark', dark);
-    document.querySelector('meta[name="theme-color"]').content = dark ? '#292622' : '#fcfaf6';
+    document.querySelector('meta[name="theme-color"]').content = dark ? '#20233b' : '#f9faff';
     native?.setDarkTheme?.(dark);
   }
 
