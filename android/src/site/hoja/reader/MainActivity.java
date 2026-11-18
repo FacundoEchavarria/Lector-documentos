@@ -44,7 +44,8 @@ import java.util.Locale;
 public final class MainActivity extends Activity {
     private static final String HOST = "appassets.androidplatform.net";
     private static final String DARK_APPEARANCE = "dark_appearance";
-    private static final int DARK_SURFACE = Color.rgb(23, 34, 30);
+    private static final int DARK_SURFACE = Color.rgb(41, 38, 34);
+    private static final int LIGHT_SURFACE = Color.rgb(252, 250, 246);
     private static final int PICK_DOCUMENT = 200;
     private static final long MAX_DOCUMENT_BYTES = 50L * 1024 * 1024;
     private final ConcurrentHashMap<String, IncomingDocument> incoming = new ConcurrentHashMap<>();
@@ -349,7 +350,7 @@ public final class MainActivity extends Activity {
     }
 
     private void applyAppearance() {
-        int surface = darkAppearance ? DARK_SURFACE : Color.WHITE;
+        int surface = darkAppearance ? DARK_SURFACE : LIGHT_SURFACE;
         root.setBackgroundColor(surface);
         webView.setBackgroundColor(surface);
         getWindow().setStatusBarColor(surface);

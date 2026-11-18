@@ -18,15 +18,14 @@ function draw(){
  $('#navCount').textContent=records.length;$('#favoriteCount').textContent=records.filter(r=>r.favorite).length;
  const needle=$('#search').value.toLocaleLowerCase('es');
  const items=records.filter(r=>(mode!=='favorites'||r.favorite)&&(filter==='all'||(filter==='pdf'?r.ext==='pdf':r.ext!=='pdf'))&&r.name.toLocaleLowerCase('es').includes(needle)).sort((a,b)=>$('#sort').value==='name'?a.name.localeCompare(b.name,'es'):(b.opened||b.added)-(a.opened||a.added));
- $('#docCount').textContent=items.length;
- $('#listTitle').firstChild.textContent=mode==='favorites'?'Favoritos ':'Documentos ';
+ $('#listTitle').textContent=mode==='favorites'?'Favoritos':'Documentos';
  $('#documentList').innerHTML=items.map(record=>`
    <div class="document-card">
      <button class="document-open" data-open="${record.id}" title="${escape(record.name)}">
-       <span class="sample-icon ${record.ext==='pdf'?'pdf':'word'}">${icon('file')}</span>
+       <span class="format-label ${record.ext==='pdf'?'pdf':'word'}">${record.ext.toUpperCase()}</span>
        <span class="document-info">
          <strong>${escape(record.name)}</strong>
-         <small>${record.ext.toUpperCase()} · ${size(record.size)} · ${date(record.opened||record.added)}</small>
+         <small>${size(record.size)} · ${date(record.opened||record.added)}</small>
        </span>
      </button>
      <div class="card-actions">
@@ -36,8 +35,8 @@ function draw(){
    </div>`).join('');
  $('#emptyState').hidden=items.length>0;
  const noRecords=!records.length&&mode==='all'&&filter==='all'&&!needle;
- $('#emptyState h3').textContent=noRecords?'Aún no hay documentos':mode==='favorites'&&!needle?'Aún no hay favoritos':'No encontramos documentos';
- $('#emptyState p').textContent=noRecords?'Los archivos que abras aparecerán aquí.':mode==='favorites'&&!needle?'Pulsa la estrella de un documento para tenerlo a mano.':'Prueba con otro nombre o cambia el filtro.';
+ $('#emptyState h3').textContent=noRecords?'Todavía no hay documentos':mode==='favorites'&&!needle?'Aún no hay favoritos':'No encontramos documentos';
+ $('#emptyState p').textContent=noRecords?'Abre un PDF o Word para guardarlo en la biblioteca.':mode==='favorites'&&!needle?'Pulsa la estrella de un documento para tenerlo a mano.':'Prueba con otro nombre o cambia el filtro.';
  $('#examplesSection').hidden=mode==='favorites'||!!needle;
 }
 const size=n=>n>=1048576?(n/1048576).toFixed(1)+' MB':Math.max(1,Math.round(n/1024))+' KB';

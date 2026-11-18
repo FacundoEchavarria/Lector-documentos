@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#ffffff">
+  <meta name="theme-color" content="#fcfaf6">
   <meta name="description" content="Lee PDF y documentos Word con Hoja.">
-  <link rel="icon" href="icon.svg?v=2" type="image/svg+xml">
+  <link rel="icon" href="icon.svg?v=3" type="image/svg+xml">
   <link rel="manifest" href="manifest.webmanifest">
   <script src="theme.js"></script>
   <link rel="stylesheet" href="style.css">
@@ -14,43 +14,38 @@
 <body>
   <div id="app" class="app-shell">
     <header class="topbar">
-      <a class="brand" href="./" aria-label="Hoja, inicio">
-        <img src="icon.svg?v=2" alt="" width="36" height="36">
-        <span>Hoja</span>
-      </a>
-      <div class="topbar-actions">
-        <button class="icon-button" id="help" aria-label="Cómo funciona" title="Cómo funciona"><svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 9a3 3 0 0 1 6 0c0 2-3 2-3 5M12 17h.01"/></svg></button>
-        <button id="theme" class="icon-button theme-button" data-theme-control aria-haspopup="dialog" aria-label="Apariencia" title="Apariencia"><span class="theme-moon"><svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.9 13.4A9 9 0 0 1 10.6 3.1a9 9 0 1 0 10.3 10.3Z"/></svg></span><span class="theme-sun"><svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1 1m12 12 1 1M5 19l1-1M18 6l1-1"/></svg></span></button>
+      <div class="topbar-inner">
+        <a class="brand" href="./" aria-label="Hoja, inicio">
+          <img src="icon.svg?v=3" alt="" width="30" height="30">
+          <span>Hoja</span>
+        </a>
+        <div class="topbar-actions">
+          <button class="icon-button" id="help" aria-label="Cómo funciona" title="Cómo funciona"><svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 9a3 3 0 0 1 6 0c0 2-3 2-3 5M12 17h.01"/></svg></button>
+          <button id="theme" class="icon-button theme-button" data-theme-control aria-haspopup="dialog" aria-label="Apariencia" title="Apariencia"><span class="theme-moon"><svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.9 13.4A9 9 0 0 1 10.6 3.1a9 9 0 1 0 10.3 10.3Z"/></svg></span><span class="theme-sun"><svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1 1m12 12 1 1M5 19l1-1M18 6l1-1"/></svg></span></button>
+        </div>
       </div>
     </header>
-    <aside class="sidebar">
-      <nav aria-label="Biblioteca">
-        <button class="nav-item active" data-nav="all" aria-pressed="true"><svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span>Documentos</span><small id="navCount">0</small></button>
-        <button class="nav-item" data-nav="favorites" aria-pressed="false"><svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.8 5.8 6.4.9-4.6 4.5 1.1 6.4-5.7-3-5.7 3 1.1-6.4-4.6-4.5 6.4-.9z"/></svg><span>Favoritos</span><small id="favoriteCount">0</small></button>
-      </nav>
-      <p class="storage-note"><svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6zM8 12l3 3 5-6"/></svg><span>Tus archivos se guardan en este dispositivo.</span></p>
-    </aside>
-    <main id="library">
+    <main id="dropzone" class="library">
       <header class="library-heading">
-        <h1>Mi biblioteca</h1>
-        <p>Lee tus PDF y documentos Word.</p>
+        <div>
+          <h1>Biblioteca</h1>
+          <p>Tus archivos se guardan en este dispositivo.</p>
+        </div>
+        <button class="primary" id="openFile">
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          Abrir archivo
+        </button>
       </header>
-      <section class="upload-panel" id="dropzone" aria-labelledby="uploadTitle">
-        <span class="upload-icon" aria-hidden="true"><svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H5v18h14V8zM14 3v6h5M8 13h8M8 17h6"/></svg></span>
-        <div class="upload-copy">
-          <h2 id="uploadTitle">Leer un archivo</h2>
-          <p>PDF, DOCX y DOC · Hasta 50 MB</p>
-        </div>
-        <button class="primary" id="openFile"><svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>Abrir documento</button>
-      </section>
+      <nav class="library-tabs" aria-label="Vistas de la biblioteca">
+        <button class="nav-item active" data-nav="all" aria-pressed="true"><span>Documentos</span><small id="navCount">0</small></button>
+        <button class="nav-item" data-nav="favorites" aria-pressed="false"><span>Favoritos</span><small id="favoriteCount">0</small></button>
+      </nav>
       <section class="documents-section" aria-labelledby="listTitle">
-        <div class="section-heading">
-          <h2 id="listTitle">Documentos <span id="docCount" class="count">0</span></h2>
-          <label class="search">
-            <svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
-            <input type="search" id="search" placeholder="Buscar documento…" aria-label="Buscar documento">
-          </label>
-        </div>
+        <h2 id="listTitle" class="visually-hidden">Documentos</h2>
+        <label class="search">
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+          <input type="search" id="search" placeholder="Buscar por nombre" aria-label="Buscar documento">
+        </label>
         <div class="list-toolbar">
           <div class="filters" role="group" aria-label="Filtrar por formato">
             <button class="selected" data-filter="all" aria-pressed="true">Todos</button>
@@ -65,24 +60,23 @@
             <svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg>
           </div>
         </div>
-        <div id="documentList" class="document-grid"></div>
+        <div id="documentList" class="document-list"></div>
         <div id="emptyState" class="empty-state" hidden>
-          <span class="empty-icon"><svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v15M3 4c4-1 6 0 9 2 3-2 5-3 9-2v14c-4-1-6 0-9 2-3-2-5-3-9-2z"/></svg></span>
-          <h3>Aún no hay documentos</h3>
-          <p>Los archivos que abras aparecerán aquí.</p>
+          <h3>Todavía no hay documentos</h3>
+          <p>Abre un PDF o Word para guardarlo en la biblioteca.</p>
         </div>
       </section>
       <section id="examplesSection" class="examples-section" aria-labelledby="examplesTitle">
-        <h2 id="examplesTitle">Documentos de ejemplo</h2>
-        <div class="examples-grid">
+        <h2 id="examplesTitle">Ejemplos</h2>
+        <div class="examples-list">
           <button class="example-card" data-example="pdf">
-              <span class="sample-icon pdf"><svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H5v18h14V8zM14 3v6h5M8 13h8M8 17h6"/></svg></span>
-              <span class="example-info"><strong>El placer de leer sin prisa</strong><small>PDF de ejemplo</small></span>
+              <span class="format-label pdf">PDF</span>
+              <span class="example-info"><strong>Lectura de ejemplo</strong><small>2 páginas</small></span>
               <span class="example-arrow"><svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg></span>
             </button>
             <button class="example-card" data-example="docx">
-              <span class="sample-icon word"><svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H5v18h14V8zM14 3v6h5M8 13h8M8 17h6"/></svg></span>
-              <span class="example-info"><strong>Bienvenido a Hoja</strong><small>Word de ejemplo</small></span>
+              <span class="format-label word">DOCX</span>
+              <span class="example-info"><strong>Documento de ejemplo</strong><small>Documento Word</small></span>
               <span class="example-arrow"><svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg></span>
             </button>
         </div>
@@ -114,7 +108,7 @@
     <article id="wordContent" class="word-content" hidden></article>
   </div>
   <button id="exitReadingFullscreen" class="exit-reading-fullscreen" hidden aria-label="Salir de pantalla completa"><svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8h5V3m8 0v5h5M8 21v-5H3m18 0h-5v5"/></svg><span>Salir</span></button>
-  <div class="reader-footer"><svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6zM8 12l3 3 5-6"/></svg>Solo lectura</div>
+  <div class="reader-footer">Solo lectura</div>
 </section>
   <dialog id="themeDialog" aria-labelledby="themeTitle">
     <form method="dialog">
@@ -131,7 +125,7 @@
     <button class="dialog-close icon-button" aria-label="Cerrar ayuda"><svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 6 12 12M6 18 18 6"/></svg></button>
     <h2 id="helpTitle">Cómo funciona</h2>
     <ol>
-      <li>Pulsa «Abrir documento» y elige un PDF o Word de tu dispositivo.</li>
+      <li>Pulsa «Abrir archivo» y elige un PDF, DOCX o DOC de hasta 50 MB.</li>
       <li>Desliza para leer y usa los controles del lector para ajustar el tamaño o abrir la pantalla completa.</li>
       <li>Pulsa la estrella de un documento para encontrarlo en Favoritos.</li>
     </ol>
