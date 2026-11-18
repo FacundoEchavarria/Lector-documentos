@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#f9faff">
-  <meta name="description" content="Lee PDF, Word y Markdown con Hoja.">
+  <meta name="description" content="Lee PDF, Word, Excel y Markdown con Hoja.">
   <link rel="icon" href="icon.svg?v=5" type="image/svg+xml">
   <link rel="manifest" href="manifest.webmanifest">
   <script src="theme.js"></script>
@@ -51,6 +51,7 @@
             <button class="selected" data-filter="all" aria-pressed="true">Todos</button>
             <button data-filter="pdf" aria-pressed="false">PDF</button>
             <button data-filter="word" aria-pressed="false">Word</button>
+            <button data-filter="excel" aria-pressed="false">Excel</button>
             <button data-filter="md" aria-pressed="false">Markdown</button>
           </div>
           <div class="sort-control">
@@ -64,7 +65,7 @@
         <div id="documentList" class="document-list"></div>
         <div id="emptyState" class="empty-state" hidden>
           <h3>Todavía no hay documentos</h3>
-          <p>Abre un PDF, Word o Markdown para guardarlo en la biblioteca.</p>
+          <p>Abre un PDF, Word, Excel o Markdown para guardarlo en la biblioteca.</p>
         </div>
       </section>
       <section id="examplesSection" class="examples-section" aria-labelledby="examplesTitle">
@@ -85,11 +86,16 @@
               <span class="example-info"><strong>Notas de lectura</strong><small>Documento Markdown</small></span>
               <span class="example-arrow"><svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg></span>
             </button>
+            <button class="example-card" data-example="xlsx">
+              <span class="format-label excel">XLSX</span>
+              <span class="example-info"><strong>Plan de lectura</strong><small>Libro de Excel</small></span>
+              <span class="example-arrow"><svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg></span>
+            </button>
         </div>
       </section>
     </main>
   </div>
-  <input type="file" id="fileInput" hidden multiple accept=".pdf,.docx,.doc,.md,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/markdown">
+  <input type="file" id="fileInput" hidden multiple accept=".pdf,.docx,.doc,.md,.xls,.xlsx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/markdown,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
   <section id="reader" class="reader" hidden aria-label="Visor de documentos">
   <header class="reader-header">
     <div class="reader-heading">
@@ -113,6 +119,20 @@
     <div id="pdfPages" class="pdf-pages" hidden></div>
     <div id="docxPages" class="docx-document" hidden></div>
     <article id="wordContent" class="word-content" hidden></article>
+    <section id="spreadsheet" class="spreadsheet" aria-label="Libro de Excel" hidden>
+      <label class="sheet-picker"><span>Hoja</span><select aria-label="Hoja del libro"></select></label>
+      <p class="sheet-empty" role="status" hidden>Esta hoja está vacía.</p>
+      <div class="sheet-scroll" tabindex="0" aria-label="Celdas de la hoja">
+        <div class="sheet-table" role="table" aria-label="Datos de la hoja">
+          <div class="sheet-heading" role="row" aria-rowindex="1"></div>
+          <div class="sheet-rows" role="rowgroup"></div>
+        </div>
+      </div>
+      <div class="sheet-value" hidden>
+        <strong></strong><span aria-live="polite"></span>
+        <button type="button" class="icon-button" aria-label="Cerrar detalle de celda">×</button>
+      </div>
+    </section>
   </div>
   <button id="exitReadingFullscreen" class="exit-reading-fullscreen" hidden aria-label="Salir de pantalla completa"><svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8h5V3m8 0v5h5M8 21v-5H3m18 0h-5v5"/></svg><span>Salir</span></button>
   <div class="reader-footer">Solo lectura</div>
@@ -132,8 +152,8 @@
     <button class="dialog-close icon-button" aria-label="Cerrar ayuda"><svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 6 12 12M6 18 18 6"/></svg></button>
     <h2 id="helpTitle">Cómo funciona</h2>
     <ol>
-      <li>Pulsa «Abrir archivo» y elige un PDF, DOCX, DOC o Markdown (.md) de hasta 50 MB.</li>
-      <li>Desliza para leer. En PDF, DOCX y Markdown, junta o separa dos dedos para ajustar el tamaño, también en pantalla completa.</li>
+      <li>Pulsa «Abrir archivo» y elige un PDF, Word, Excel (.xls o .xlsx) o Markdown de hasta 50 MB.</li>
+      <li>Desliza para leer. En PDF, DOCX, Excel y Markdown, junta o separa dos dedos para ajustar el tamaño.</li>
       <li>Pulsa la estrella de un documento para encontrarlo en Favoritos.</li>
     </ol>
     <p class="help-note">Los documentos se abren en modo de solo lectura. Los archivos DOC antiguos se muestran como texto.</p>

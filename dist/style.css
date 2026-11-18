@@ -29,6 +29,8 @@
   --word-ink: #27368b;
   --md-bg: #e1eef4;
   --md-ink: #25516a;
+  --excel-bg: #e0efe9;
+  --excel-ink: #225b4d;
   --star: #79520f;
   --danger-bg: #a62e37;
   --danger-text: #ffffff;
@@ -56,6 +58,8 @@
   --word-ink: #d0daff;
   --md-bg: #263d4d;
   --md-ink: #bde4f6;
+  --excel-bg: #29463f;
+  --excel-ink: #c1ebd9;
   --star: #f1cb78;
   --danger-bg: #ffc0c3;
   --danger-text: #44181d;
@@ -267,6 +271,7 @@ h1, h2, h3 { line-height: 1.25; }
 .pdf { background: var(--pdf-bg); color: var(--pdf-ink); }
 .word { background: var(--word-bg); color: var(--word-ink); }
 .md { background: var(--md-bg); color: var(--md-ink); }
+.excel { background: var(--excel-bg); color: var(--excel-ink); }
 .empty-state { padding: 22px 4px 23px; border-block: 1px solid var(--line); }
 .empty-state h3 { font-size: 15px; }
 .empty-state p { margin-top: 4px; color: var(--muted); font-size: 13px; }
@@ -437,6 +442,106 @@ button:disabled { background: var(--soft); color: var(--muted); cursor: default;
 .markdown-content blockquote > :last-child, .markdown-content li > :last-child { margin-bottom: 0; }
 .markdown-content th { background: var(--soft); }
 .markdown-content hr { margin: 1.4em 0; border: 0; border-top: 1px solid var(--line); }
+.reader-viewport.spreadsheet-mode {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+.spreadsheet { display: flex; flex: 1; min-height: 0; min-width: 0; flex-direction: column; }
+.sheet-picker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 13px;
+}
+.sheet-picker select {
+  min-width: 0;
+  min-height: 44px;
+  max-width: min(420px, 85%);
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--control-bg);
+  color: var(--control-text);
+}
+.sheet-empty { margin: 24px 12px; text-align: center; color: var(--muted); }
+.sheet-scroll {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: var(--surface);
+  touch-action: pan-x pan-y;
+  overscroll-behavior: contain;
+  overflow-anchor: none;
+}
+.sheet-scroll:focus-visible { outline-offset: -2px; }
+.sheet-table { position: relative; font-variant-numeric: tabular-nums; }
+.sheet-heading {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  height: var(--sheet-row);
+  background: var(--soft);
+  color: var(--control-text);
+}
+.sheet-rows { position: absolute; inset: 0; }
+.sheet-row { position: absolute; width: 100%; height: var(--sheet-row); }
+.sheet-corner, .sheet-row-number {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: var(--sheet-label);
+  height: var(--sheet-row);
+  background: var(--soft);
+  color: var(--control-text);
+  border-inline-end: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  font-weight: 650;
+}
+.sheet-column, .sheet-cell {
+  position: absolute;
+  top: 0;
+  height: var(--sheet-row);
+  border-inline-end: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.sheet-column { display: grid; place-items: center; font-weight: 650; }
+.sheet-cell button {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding-inline: .55em;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: inherit;
+}
+.sheet-cell button:hover { background: var(--tint); }
+.sheet-cell button:focus-visible { outline-offset: -2px; }
+.sheet-cell .sheet-number { text-align: end; }
+.sheet-value {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 4px 12px;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+}
+.sheet-value strong, .sheet-value span { margin-block: 10px; }
+.sheet-value span { flex: 1; min-width: 0; max-height: 20vh; overflow: auto; overflow-wrap: anywhere; white-space: pre-wrap; }
+.reader.reading-fullscreen > .reader-viewport.spreadsheet-mode { padding: 0 0 max(62px, env(safe-area-inset-bottom)); }
 .reader-footer {
   flex: none;
   display: flex;

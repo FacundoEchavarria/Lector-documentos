@@ -18,7 +18,7 @@ def tool(name, *args):
 
 with zipfile.ZipFile(apk) as archive:
     assert archive.testzip() is None
-    for file in ['app.js', 'pdf-reader.js', 'docx-reader.js', 'markdown-reader.js', 'pinch-zoom.js', 'reading-mode.js', 'theme.js', 'icons.js', 'vendor/pdf.mjs', 'vendor/pdf.worker.mjs', 'vendor/docx-preview.js', 'vendor/jszip.js', 'vendor/marked.mjs', 'vendor/legacy.js', 'samples/ejemplo.md']:
+    for file in ['app.js', 'pdf-reader.js', 'docx-reader.js', 'markdown-reader.js', 'spreadsheet-reader.js', 'pinch-zoom.js', 'reading-mode.js', 'theme.js', 'icons.js', 'vendor/pdf.mjs', 'vendor/pdf.worker.mjs', 'vendor/docx-preview.js', 'vendor/jszip.js', 'vendor/marked.mjs', 'vendor/legacy.js', 'vendor/xlsx.mjs', 'vendor/xlsx-codepages.mjs', 'samples/ejemplo.md', 'samples/ejemplo.xlsx']:
         assert archive.read('assets/web/' + file) == (root / 'dist' / file).read_bytes(), file
     html = archive.read('assets/web/index.html')
     for logo in ('brand.svg', 'brand-dark.svg'):
@@ -36,13 +36,14 @@ with zipfile.ZipFile(apk) as archive:
     assert b'isSystemDarkTheme' in dex and b'setDarkTheme' in dex
     assert b'setSupportZoom' in dex
     assert b'text/markdown' in html and b'text/markdown' in dex
+    assert b'application/vnd.ms-excel' in html and b'application/vnd.ms-excel' in dex
     assert b'<symbol' not in html and b'<use ' not in html
 
 version = ET.parse(root / 'android/AndroidManifest.xml').getroot().attrib
 name = version['{http://schemas.android.com/apk/res/android}versionName']
 code = version['{http://schemas.android.com/apk/res/android}versionCode']
 manifest = tool('aapt2', 'dump', 'xmltree', apk, '--file', 'AndroidManifest.xml')
-for value in ['site.hoja.reader', name, 'android.intent.action.VIEW', 'android.intent.action.SEND', 'android.intent.action.SEND_MULTIPLE', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/markdown', 'text/x-markdown']:
+for value in ['site.hoja.reader', name, 'android.intent.action.VIEW', 'android.intent.action.SEND', 'android.intent.action.SEND_MULTIPLE', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/markdown', 'text/x-markdown', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']:
     assert value in manifest, value
 assert f'versionCode(0x0101021b)={code}' in manifest
 assert 'uses-permission' not in tool('aapt2', 'dump', 'permissions', apk)

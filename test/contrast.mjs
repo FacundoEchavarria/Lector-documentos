@@ -9,6 +9,7 @@ const pairs = [
  ['--button-text','--button-bg'], ['--control-text','--control-bg'], ['--muted','--soft'],
  ['--text','--surface'], ['--muted','--bg'], ['--tint-text','--tint'],
  ['--pdf-ink','--pdf-bg'], ['--word-ink','--word-bg'], ['--md-ink','--md-bg'],
+ ['--excel-ink','--excel-bg'],
  ['--danger-text','--danger-bg']
 ];
 for(const [theme,vars] of [['light',light],['dark',dark]]){

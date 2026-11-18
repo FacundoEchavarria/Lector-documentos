@@ -1,14 +1,14 @@
 # Descargar Hoja para Android
 
-[Descargar Hoja 1.5.3](https://github.com/FacundoEchavarria/Lector-documentos/raw/refs/heads/main/releases/Hoja-1.5.3.apk)
+[Descargar Hoja 1.6.0](https://github.com/FacundoEchavarria/Lector-documentos/raw/refs/heads/main/releases/Hoja-1.6.0.apk)
 
 Android 8.0 o posterior y Android System WebView actualizado. Abre el APK descargado para instalar; Android puede pedir autorización para instalar aplicaciones desde el navegador o el gestor de archivos.
 
-El visor funciona sin conexión. Incluye PDF, Word y Markdown de solo lectura. Los DOC antiguos se muestran como texto. Los documentos se guardan dentro de la app y no se suben a ningún servidor.
+El visor funciona sin conexión. Incluye PDF, Word, Excel y Markdown de solo lectura. Los DOC antiguos se muestran como texto. Los documentos se guardan dentro de la app y no se suben a ningún servidor.
 
 Se verificaron la compilación, integridad y firma v2/v3 del paquete. No se ha probado en un teléfono o emulador Android en este entorno.
 
-El archivo `Hoja-1.5.3.apk.sha256` contiene su suma de verificación. Las fuentes y las instrucciones para compilar están en `android/`.
+El archivo `Hoja-1.6.0.apk.sha256` contiene su suma de verificación. Las fuentes y las instrucciones para compilar están en `android/`.
 
 ## Cambios en 1.1.0
 
@@ -77,3 +77,8 @@ El archivo `Hoja-1.5.3.apk.sha256` contiene su suma de verificación. Las fuente
 ## Cambios en 1.5.3
 
 - Paleta azul del logo aplicada a la biblioteca, el lector, los menús y las barras de Android en modo claro y oscuro.
+
+## Cambios en 1.6.0
+
+- Lectura de Excel (.xlsx y .xls), con selector de hojas, encabezados de filas y columnas y zoom sobre la planilla.
+- Filtro Excel en la biblioteca y apertura desde el gestor de archivos de Android.

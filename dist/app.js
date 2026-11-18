@@ -2,18 +2,19 @@ import * as pdfjs from './vendor/pdf.mjs';
 import { ContinuousPdfReader } from './pdf-reader.js';
 import { DocxReader } from './docx-reader.js';
 import { MarkdownReader } from './markdown-reader.js';
+import { SpreadsheetReader } from './spreadsheet-reader.js';
 import { createReadingMode } from './reading-mode.js';
 import { icon } from './icons.js';
 pdfjs.GlobalWorkerOptions.workerSrc = new URL('./vendor/pdf.worker.mjs', import.meta.url).href;
 const $ = s => document.querySelector(s);
 const escape = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const formats = { pdf: 'pdf', doc: 'word', docx: 'word', md: 'md' };
-const examples = { pdf: 'El placer de leer sin prisa.pdf', docx: 'Bienvenido a tu nuevo espacio.docx', md: 'Notas de lectura.md' };
-let records=[], mode='all', filter='all', db, current, pdf, pdfReader, docxReader, markdownReader, zoom=1, openToken=0, pendingDelete, positionTimer, documentLoading=false;
+const formats = { pdf: 'pdf', doc: 'word', docx: 'word', md: 'md', xls: 'excel', xlsx: 'excel' };
+const examples = { pdf: 'El placer de leer sin prisa.pdf', docx: 'Bienvenido a tu nuevo espacio.docx', md: 'Notas de lectura.md', xlsx: 'Plan de lectura.xlsx' };
+let records=[], mode='all', filter='all', db, current, pdf, pdfReader, docxReader, markdownReader, spreadsheetReader, zoom=1, openToken=0, pendingDelete, positionTimer, documentLoading=false;
 let toastTimer;
 const readingMode=createReadingMode({reader:$('#reader'),button:$('#readerFullscreen'),exitButton:$('#exitReadingFullscreen'),onError:message=>toast(message),onLayoutChange(){
  const viewer=pdfReader;const position=viewer?.getPosition();
- requestAnimationFrame(()=>{if(viewer&&viewer===pdfReader){viewer.resize();viewer.restorePosition(position);viewer.updateVisible();}docxReader?.resize();});
+ requestAnimationFrame(()=>{if(viewer&&viewer===pdfReader){viewer.resize();viewer.restorePosition(position);viewer.updateVisible();}docxReader?.resize();spreadsheetReader?.resize();});
 }});
 function toast(msg){$('#toast').textContent=msg;$('#toast').classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('visible'),4500)}
 async function initDB(){return new Promise((resolve,reject)=>{let req=indexedDB.open('hoja-library',1);req.onupgradeneeded=()=>req.result.createObjectStore('documents',{keyPath:'id'});req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
@@ -40,7 +41,7 @@ function draw(){
  $('#emptyState').hidden=items.length>0;
  const noRecords=!records.length&&mode==='all'&&filter==='all'&&!needle;
  $('#emptyState h3').textContent=noRecords?'Todavía no hay documentos':mode==='favorites'&&!needle?'Aún no hay favoritos':'No encontramos documentos';
- $('#emptyState p').textContent=noRecords?'Abre un PDF, Word o Markdown para guardarlo en la biblioteca.':mode==='favorites'&&!needle?'Pulsa la estrella de un documento para tenerlo a mano.':'Prueba con otro nombre o cambia el filtro.';
+ $('#emptyState p').textContent=noRecords?'Abre un PDF, Word, Excel o Markdown para guardarlo en la biblioteca.':mode==='favorites'&&!needle?'Pulsa la estrella de un documento para tenerlo a mano.':'Prueba con otro nombre o cambia el filtro.';
  $('#examplesSection').hidden=mode==='favorites'||!!needle;
 }
 const size=n=>n>=1048576?(n/1048576).toFixed(1)+' MB':Math.max(1,Math.round(n/1024))+' KB';
@@ -49,7 +50,7 @@ async function importFiles(files){
  let first;
  for(const file of files){
  const ext=file.name.split('.').pop().toLowerCase();
- if(!Object.hasOwn(formats,ext)){toast('Elige un documento PDF, DOCX, DOC o Markdown (.md).');continue}
+ if(!Object.hasOwn(formats,ext)){toast('Elige un documento PDF, Word, Excel o Markdown.');continue}
  if(!file.size||file.size>50*1024*1024){toast(file.size?'El límite es de 50 MB por documento.':'Este documento está vacío.');continue}
  const existing=records.find(r=>r.name===file.name&&r.size===file.size&&(file.hojaFingerprint?r.fingerprint===file.hojaFingerprint:r.modified===file.lastModified));
  if(existing){first ||= existing;continue}
@@ -70,6 +71,7 @@ async function openDocument(record){
  pdfReader?.destroy();pdfReader=null;
  docxReader?.destroy();docxReader=null;
  markdownReader?.destroy();markdownReader=null;
+ spreadsheetReader?.destroy();spreadsheetReader=null;
  if(pdf){pdf.destroy();pdf=null}
  current=record;zoom=1;documentLoading=true;
  $('#reader').hidden=false;$('#app').inert=true;$('#app').hidden=true;document.body.style.overflow='hidden';$('#closeReader').focus();$('#readerName').textContent=record.name;
@@ -107,15 +109,21 @@ async function openDocument(record){
  }else if(record.ext==='md'){
  markdownReader=new MarkdownReader({article:$('#wordContent'),viewport:$('#readerViewport'),onZoomChange});
  markdownReader.open(bytes);
+ }else if(formats[record.ext]==='excel'){
+ const viewer=new SpreadsheetReader({view:$('#spreadsheet'),viewport:$('#readerViewport'),onZoomChange});
+ spreadsheetReader=viewer;
+ const count=await viewer.open(bytes,record.ext);
+ if(token!==openToken)return;
+ $('#readerStatus').textContent=`Excel · ${count} ${count===1?'hoja':'hojas'}`;
  }else{
  const text=await window.readLegacyDoc(bytes);if(!text.trim())throw new Error('empty');
  if(token!==openToken)return;
  $('#wordContent').innerHTML=text.split(/\n+/).map(p=>`<p>${escape(p)}</p>`).join('');
  $('#wordContent').style.fontSize='16px';$('#wordContent').hidden=false;
  }
- if(token!==openToken)return;$('#readerLoading').hidden=true;documentLoading=false;updateZoomControls();
+ if(token!==openToken)return;$('#readerLoading').hidden=true;documentLoading=false;spreadsheetReader?.resize();updateZoomControls();
  record.opened=Date.now();if(!record.sample){try{await dbOp('put',record)}catch{}draw()}
- }catch(error){if(token!==openToken)return;docxReader?.destroy();docxReader=null;markdownReader?.destroy();markdownReader=null;$('#docxPages').hidden=true;$('#readerLoading').hidden=false;$('#readerLoading').textContent='No se pudo abrir este documento. Puede estar dañado, protegido o tener un formato no compatible. Vuelve a la biblioteca y prueba con otro archivo.';$('#pdfPages').hidden=true;$('#wordContent').hidden=true;console.error('Document read failed:',error.name)}
+ }catch(error){if(token!==openToken)return;docxReader?.destroy();docxReader=null;markdownReader?.destroy();markdownReader=null;spreadsheetReader?.destroy();spreadsheetReader=null;$('#docxPages').hidden=true;$('#readerLoading').hidden=false;$('#readerLoading').textContent='No se pudo abrir este documento. Puede estar dañado, protegido o tener un formato no compatible. Vuelve a la biblioteca y prueba con otro archivo.';$('#pdfPages').hidden=true;$('#wordContent').hidden=true;console.error('Document read failed:',error.name)}
 }
 function savePosition(){
  clearTimeout(positionTimer);
@@ -126,6 +134,7 @@ function closeReader(){
  savePosition();openToken++;pdfReader?.destroy();pdfReader=null;if(pdf){pdf.destroy();pdf=null}
  docxReader?.destroy();docxReader=null;
  markdownReader?.destroy();markdownReader=null;
+ spreadsheetReader?.destroy();spreadsheetReader=null;
  $('#reader').hidden=true;$('#app').inert=false;$('#app').hidden=false;document.body.style.overflow='';$('#wordContent').replaceChildren();$('#openFile').focus();draw();
 }
 function updateZoomControls(){
@@ -133,7 +142,7 @@ function updateZoomControls(){
 }
 function changeZoom(delta){
  zoom=Math.max(.6,Math.min(2.5,Math.round((zoom+delta)*10)/10));updateZoomControls();
- const documentReader=pdfReader||docxReader||markdownReader;
+ const documentReader=pdfReader||docxReader||markdownReader||spreadsheetReader;
  if(documentReader)documentReader.setZoom(zoom);else $('#wordContent').style.fontSize=(16*zoom)+'px';
 }
 $('#openFile').onclick=()=>$('#fileInput').click();$('#fileInput').onchange=e=>importFiles(e.target.files);
@@ -159,8 +168,18 @@ $('#documentList').onclick=async e=>{const open=e.target.closest('[data-open]');
 $('#cancelDelete').onclick=()=>$('#deleteDialog').close();$('#confirmDelete').onclick=async()=>{try{if(db)await dbOp('delete',pendingDelete);records=records.filter(r=>r.id!==pendingDelete);$('#deleteDialog').close();draw();toast('Documento quitado de la biblioteca.')}catch{toast('No se pudo quitar el documento. Inténtalo de nuevo.')}};
 for(const b of document.querySelectorAll('[data-example]'))b.onclick=async()=>{const ext=b.dataset.example;try{const response=await fetch(`samples/ejemplo.${ext}`);if(!response.ok)throw new Error();openDocument({id:'sample-'+ext,ext,name:examples[ext],blob:await response.blob(),sample:true})}catch{toast('No se pudo cargar el ejemplo. Comprueba tu conexión.')}};
 $('#closeReader').onclick=closeReader;$('#zoomOut').onclick=()=>changeZoom(-.1);$('#zoomIn').onclick=()=>changeZoom(.1);$('#fitWidth').onclick=()=>{zoom=1;changeZoom(0)};
-window.addEventListener('keydown',e=>{if($('#reader').hidden||e.defaultPrevented||$('dialog[open]'))return;if(e.key==='Escape')closeReader();if(e.key===' ' && e.target.closest?.('input, button, select, a'))return;if(['ArrowDown','ArrowUp','PageDown','PageUp',' '].includes(e.key)){e.preventDefault();const direction=['ArrowUp','PageUp'].includes(e.key)?-1:1;const amount=e.key.startsWith('Arrow')?60:$('#readerViewport').clientHeight*.85;$('#readerViewport').scrollBy({top:direction*amount,behavior:'auto'});}});
-let resizeTimer;window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{pdfReader?.resize();docxReader?.resize();},200)});
+window.addEventListener('keydown',event=>{
+ if($('#reader').hidden||event.defaultPrevented||$('dialog[open]'))return;
+ if(event.key==='Escape'){closeReader();return;}
+ if(event.target.closest?.('select, input')||(event.key===' '&&event.target.closest?.('button, a')))return;
+ if(!['ArrowDown','ArrowUp','PageDown','PageUp',' '].includes(event.key))return;
+ event.preventDefault();
+ const area=spreadsheetReader?.scroller||$('#readerViewport');
+ const direction=['ArrowUp','PageUp'].includes(event.key)?-1:1;
+ const amount=event.key.startsWith('Arrow')?60:area.clientHeight*.85;
+ area.scrollBy({top:direction*amount,behavior:'auto'});
+});
+let resizeTimer;window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{pdfReader?.resize();docxReader?.resize();spreadsheetReader?.resize();},200)});
 $('#help').onclick=()=>$('#helpDialog').showModal();$('.dialog-close').onclick=()=>$('#helpDialog').close();$('.dialog-done').onclick=()=>$('#helpDialog').close();for(const d of document.querySelectorAll('dialog'))d.onclick=e=>{if(e.target===d){const r=d.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)d.close()}};
 try{db=await initDB();records=await dbOp('getAll')}catch{toast('El almacenamiento no está disponible. Podrás leer archivos durante esta sesión.')}draw();
 

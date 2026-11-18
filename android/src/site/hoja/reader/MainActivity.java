@@ -43,6 +43,8 @@ import java.util.Locale;
 /** Local-only reader. The system picker grants access to selected documents. */
 public final class MainActivity extends Activity {
     private static final String MARKDOWN_MIME = "text/markdown";
+    private static final String XLS_MIME = "application/vnd.ms-excel";
+    private static final String XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
     private static final String HOST = "appassets.androidplatform.net";
     private static final String DARK_APPEARANCE = "dark_appearance";
     private static final int DARK_SURFACE = Color.rgb(32, 35, 59);
@@ -136,6 +138,7 @@ public final class MainActivity extends Activity {
                 intent.setType("*/*");
                 intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{
                     "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    XLS_MIME, XLSX_MIME,
                     MARKDOWN_MIME, "text/x-markdown", "application/markdown", "application/x-markdown",
                     "text/plain", "application/octet-stream"
                 });
@@ -196,7 +199,7 @@ public final class MainActivity extends Activity {
                         });
                     } catch (Exception error) {
                         runOnUiThread(new Runnable() {
-                            @Override public void run() { if (!destroyed) message("No se pudo abrir el archivo. Elige un PDF, Word o Markdown de hasta 50 MB."); }
+                            @Override public void run() { if (!destroyed) message("No se pudo abrir el archivo. Elige un PDF, Word, Excel o Markdown de hasta 50 MB."); }
                         });
                     }
                 }
@@ -221,15 +224,17 @@ public final class MainActivity extends Activity {
         if (name == null || name.trim().isEmpty()) name = "Documento";
         name = name.replace('/', '_').replace('\\', '_').trim();
         String lower = name.toLowerCase(Locale.ROOT);
-        if (!lower.endsWith(".pdf") && !lower.endsWith(".doc") && !lower.endsWith(".docx") && !lower.endsWith(".md")) {
+        if (documentMime(lower) == null) {
             if ("application/pdf".equals(type) || "application/x-pdf".equals(type)) name += ".pdf";
             else if ("application/msword".equals(type) || "application/vnd.ms-word".equals(type)) name += ".doc";
             else if ("application/vnd.openxmlformats-officedocument.wordprocessingml.document".equals(type)) name += ".docx";
             else if (isMarkdownType(type) || isMarkdownType(intentType)) name += ".md";
+            else if (XLS_MIME.equals(type) || XLS_MIME.equals(intentType)) name += ".xls";
+            else if (XLSX_MIME.equals(type) || XLSX_MIME.equals(intentType)) name += ".xlsx";
             else throw new IOException("Unsupported document");
         }
         lower = name.toLowerCase(Locale.ROOT);
-        type = mime(lower);
+        type = documentMime(lower);
         return new IncomingDocument(uri, name, type);
     }
 
@@ -414,11 +419,17 @@ public final class MainActivity extends Activity {
         if (path.endsWith(".svg")) return "image/svg+xml";
         if (path.endsWith(".png")) return "image/png";
         if (path.endsWith(".woff2")) return "font/woff2";
+        String type = documentMime(path);
+        return type == null ? "application/octet-stream" : type;
+    }
+    private static String documentMime(String path) {
         if (path.endsWith(".pdf")) return "application/pdf";
         if (path.endsWith(".docx")) return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
         if (path.endsWith(".doc")) return "application/msword";
+        if (path.endsWith(".xls")) return XLS_MIME;
+        if (path.endsWith(".xlsx")) return XLSX_MIME;
         if (path.endsWith(".md")) return MARKDOWN_MIME;
-        return "application/octet-stream";
+        return null;
     }
     @Override protected void onDestroy() {
         destroyed = true; documentExecutor.shutdownNow(); incoming.clear(); pending.clear();
